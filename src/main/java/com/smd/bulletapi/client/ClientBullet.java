@@ -1,5 +1,7 @@
 package com.smd.bulletapi.client;
 
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.Vec3d;
 
 public class ClientBullet {
@@ -11,8 +13,11 @@ public class ClientBullet {
     private final int maxLife;
     private float damage;
     private boolean dead;
+    private ResourceLocation texture;      // 客户端纹理对象
+    private NBTTagCompound customData;
 
-    public ClientBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage) {
+    public ClientBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
+                        ResourceLocation texture, NBTTagCompound customData) {
         this.id = id;
         this.position = position;
         this.prevPosition = position;
@@ -21,6 +26,8 @@ public class ClientBullet {
         this.life = maxLife;
         this.damage = damage;
         this.dead = false;
+        this.texture = texture;
+        this.customData = customData == null ? new NBTTagCompound() : customData;
     }
 
     /** 每tick调用：保存上一位置，根据速度移动，减少生命 */
@@ -40,8 +47,16 @@ public class ClientBullet {
         return new Vec3d(x, y, z);
     }
 
-    public int getId() { return id; }
-    public boolean isDead() { return dead; }
-    public void setVelocity(Vec3d velocity) { this.velocity = velocity; }
-    public Vec3d getVelocity() { return velocity; }
+    public int getId() {
+        return id; }
+    public boolean isDead() {
+        return dead; }
+    public void setVelocity(Vec3d velocity) {
+        this.velocity = velocity; }
+    public Vec3d getVelocity() {
+        return velocity; }
+    public ResourceLocation getTexture() {
+        return texture; }
+    public NBTTagCompound getCustomData() {
+        return customData; }
 }

@@ -1,5 +1,7 @@
 package com.smd.bulletapi.client;
 
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -11,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @SideOnly(Side.CLIENT)
 public class ClientDanmakuCache {
-    public static ClientDanmakuCache INSTANCE; // 由 ClientProxy 初始化
+    public static ClientDanmakuCache INSTANCE;
 
     private final Map<Integer, ClientBullet> bullets = new ConcurrentHashMap<>();
 
@@ -19,9 +21,10 @@ public class ClientDanmakuCache {
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this);
     }
 
-    public void spawnBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage) {
-        //System.out.println("[BulletAPI] 客户端添加弹幕 ID=" + id + " 位置=" + position); // ←
-        bullets.put(id, new ClientBullet(id, position, velocity, maxLife, damage));
+    // 新增参数
+    public void spawnBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
+                            ResourceLocation texture, NBTTagCompound customData) {
+        bullets.put(id, new ClientBullet(id, position, velocity, maxLife, damage, texture, customData));
     }
 
     public void updateBulletVelocity(int id, Vec3d velocity) {
