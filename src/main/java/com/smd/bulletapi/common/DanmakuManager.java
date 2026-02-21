@@ -1,7 +1,5 @@
 package com.smd.bulletapi.common;
 
-
-import com.smd.bulletapi.common.collision.CollisionHelper;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.network.PacketHandler;
@@ -38,21 +36,19 @@ public class DanmakuManager {
         return worldBullets.computeIfAbsent(world, w -> new ConcurrentHashMap<>());
     }
 
-    public void spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage) {
-        spawnBullet(world, position, velocity, life, damage, null, null, null, null);
-    }
-
-    // 完整版
-    public void spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
-                            String texture, NBTTagCompound customData,
-                            ICollisionShape collisionShape, Consumer<CollisionContext> onCollision) {
-        if (world.isRemote) return;
+    /**
+     * 生成弹幕并返回其唯一ID
+     */
+    public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
+                           String texture, NBTTagCompound customData,
+                           ICollisionShape collisionShape, Consumer<CollisionContext> onCollision) {
+        if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage, texture, customData, collisionShape, onCollision);
         getWorldMap(world).put(id, bullet);
         PacketHandler.sendToAll(SPacketDanmaku.createSpawn(
                 id, position, velocity, life, damage, texture, customData));
-        // 注意：碰撞盒和回调是服务端专用的，**不同步到客户端**（客户端无需碰撞逻辑）
+        return id;
     }
 
     public void removeBullet(World world, int id) {
@@ -81,35 +77,36 @@ public class DanmakuManager {
         if (event.phase == TickEvent.Phase.END) {
             Map<Integer, Bullet> map = worldBullets.get(world);
             if (map != null) {
+                // 更新所有弹幕位置
                 for (Bullet bullet : map.values()) {
                     bullet.update(world);
                 }
+
+                // 碰撞检测
                 List<EntityPlayer> players = world.playerEntities;
                 for (Bullet bullet : map.values()) {
-                    if (!bullet.hasCollision() || bullet.isDead()) continue;
+                    ICollisionShape shape = bullet.getCollisionShape();
+                    if (shape == null || bullet.isDead()) continue;
 
                     Vec3d pos = bullet.getPosition();
                     for (EntityPlayer player : players) {
                         if (player.isDead || player.capabilities.disableDamage) continue;
-                        if (CollisionHelper.checkCollision(bullet.getCollisionShape(), pos, player)) {
-                            // 触发碰撞
+
+                        // 使用形状的统一碰撞检查（包含快速过滤）
+                        if (shape.checkCollision(pos, player)) {
                             CollisionContext ctx = new CollisionContext(bullet, world, player);
-                            // 1. 触发事件（便于其他Mod监听）
-                            BulletCollisionEvent Bulletevent = new BulletCollisionEvent(world, bullet, player, ctx);
-                            MinecraftForge.EVENT_BUS.post(Bulletevent);
-                            if (!Bulletevent.isCanceled()) {
-                                // 2. 调用弹幕自身的回调
+                            BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, player, ctx);
+                            MinecraftForge.EVENT_BUS.post(eventBus);
+                            if (!eventBus.isCanceled()) {
                                 bullet.onCollision(world, player);
-                                // 3. 默认伤害处理（若未被取消）
                                 if (!ctx.canceled) {
                                     player.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
                                 }
                             }
-                            // 碰撞后弹幕是否消失？可由开发者通过回调控制，默认不消失。
-                            // 如需消失，可在回调中调用 DanmakuManager.removeBullet
                         }
                     }
                 }
+
                 // 移除已死亡的弹幕
                 map.entrySet().removeIf(entry -> entry.getValue().isDead());
             }
