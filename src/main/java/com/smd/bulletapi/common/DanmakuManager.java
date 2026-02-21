@@ -40,14 +40,17 @@ public class DanmakuManager {
      * 生成弹幕并返回其唯一ID
      */
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
-                           String texture, NBTTagCompound customData,
-                           ICollisionShape collisionShape, Consumer<CollisionContext> onCollision) {
+                           String texture, int color, float size, String rendererType,
+                           NBTTagCompound customData, ICollisionShape collisionShape,
+                           Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
-        Bullet bullet = new Bullet(id, position, velocity, life, damage, texture, customData, collisionShape, onCollision);
+        Bullet bullet = new Bullet(id, position, velocity, life, damage,
+                texture, color, size, rendererType, customData,
+                collisionShape, onCollision, tickCallback);
         getWorldMap(world).put(id, bullet);
         PacketHandler.sendToAll(SPacketDanmaku.createSpawn(
-                id, position, velocity, life, damage, texture, customData));
+                id, position, velocity, life, damage, texture, color, size, rendererType, customData));
         return id;
     }
 
@@ -92,7 +95,6 @@ public class DanmakuManager {
                     for (EntityPlayer player : players) {
                         if (player.isDead || player.capabilities.disableDamage) continue;
 
-                        // 使用形状的统一碰撞检查（包含快速过滤）
                         if (shape.checkCollision(pos, player)) {
                             CollisionContext ctx = new CollisionContext(bullet, world, player);
                             BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, player, ctx);
