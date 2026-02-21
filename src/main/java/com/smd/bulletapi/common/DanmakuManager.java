@@ -11,14 +11,12 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -129,7 +127,7 @@ public class DanmakuManager {
         if (!eventBus.isCanceled()) {
             bullet.onCollision(world, entity);
             if (!ctx.canceled) {
-                entity.setDead();
+                entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }
         }
     }
