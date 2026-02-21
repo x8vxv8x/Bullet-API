@@ -27,6 +27,9 @@ public class SphereShape implements ICollisionShape {
 
     @Override
     public boolean canCollideWith(Entity entity) {
-        return entity instanceof EntityPlayer && !((EntityPlayer) entity).isCreative();
+        if (entity instanceof EntityPlayer) {
+            return !((EntityPlayer) entity).isCreative();
+        }
+        return entity instanceof EntityLivingBase;
     }
 }

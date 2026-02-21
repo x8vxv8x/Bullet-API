@@ -123,7 +123,6 @@ public class DanmakuManager {
     }
 
     private void handleCollision(Bullet bullet, World world, Entity entity) {
-        System.out.println("碰撞触发: 弹幕 " + bullet.getId() + " 击中 " + entity.getName());
         CollisionContext ctx = new CollisionContext(bullet, world, entity);
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
