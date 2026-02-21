@@ -30,6 +30,7 @@ public class TestEvent {
         // ----- 1. 基础属性：位置与速度 -----
         Vec3d eyePos = player.getPositionEyes(1.0F);
         Vec3d lookVec = player.getLookVec();
+        Vec3d velocity = lookVec.scale(0.3);
 
         // ----- 2. 纹理：使用自定义资源路径（请确保实际有此纹理）-----
         String texturePath = "bulletapi:textures/entity/bullet.png"; // 若纹理不存在，将回退为纯色点精灵
@@ -78,7 +79,6 @@ public class TestEvent {
             double dz = (Math.random() * 2 - 1) * halfExtent;
 
             Vec3d spawnPos = center.add(dx, dy, dz);
-            Vec3d velocity = Vec3d.ZERO;   // 悬浮静止
 
             // 使用完整参数 API，但碰撞盒与回调均设为 null（纯视觉测试）
             BulletAPI.spawnBullet(

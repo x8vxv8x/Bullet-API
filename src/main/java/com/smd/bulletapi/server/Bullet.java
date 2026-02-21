@@ -47,8 +47,6 @@ public class Bullet {
             dead = true;
             return;
         }
-        // 碰撞检测、伤害应用等（省略具体实现）
-        // 示例：如果位置下方是空气等，这里可以添加逻辑。
     }
 
     public boolean isDead() {

@@ -39,12 +39,19 @@ public class ClientBullet {
         if (life <= 0) dead = true;
     }
 
-    /** 获取渲染位置（线性插值） */
+    /** 获取渲染位置（线性插值）- 返回新Vec3d（保留原方法兼容旧代码） */
     public Vec3d getRenderPosition(float partialTicks) {
         double x = prevPosition.x + (position.x - prevPosition.x) * partialTicks;
         double y = prevPosition.y + (position.y - prevPosition.y) * partialTicks;
         double z = prevPosition.z + (position.z - prevPosition.z) * partialTicks;
         return new Vec3d(x, y, z);
+    }
+
+    /** 高效获取渲染位置，将结果写入给定数组（推荐用于渲染循环） */
+    public void getRenderPosition(float partialTicks, double[] outPos) {
+        outPos[0] = prevPosition.x + (position.x - prevPosition.x) * partialTicks;
+        outPos[1] = prevPosition.y + (position.y - prevPosition.y) * partialTicks;
+        outPos[2] = prevPosition.z + (position.z - prevPosition.z) * partialTicks;
     }
 
     public int getId() {

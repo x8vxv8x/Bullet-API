@@ -7,7 +7,6 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -31,7 +30,7 @@ public class RenderHandler {
         double viewY = mc.player.prevPosY + (mc.player.posY - mc.player.prevPosY) * partialTicks;
         double viewZ = mc.player.prevPosZ + (mc.player.posZ - mc.player.prevPosZ) * partialTicks;
 
-        // 1. 分离有纹理和无纹理的弹幕
+        // 分离有纹理和无纹理的弹幕
         List<ClientBullet> texturedBullets = new ArrayList<>();
         List<ClientBullet> pointBullets = new ArrayList<>();
 
@@ -48,7 +47,9 @@ public class RenderHandler {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GlStateManager.disableLighting();
-        GlStateManager.disableDepth(); // 避免被方块遮挡
+
+        // 复用数组，避免每颗子弹创建 Vec3d
+        double[] renderPos = new double[3];
 
         // ---------- 绘制点精灵（无纹理） ----------
         if (!pointBullets.isEmpty()) {
@@ -61,15 +62,16 @@ public class RenderHandler {
             buf.begin(GL11.GL_POINTS, DefaultVertexFormats.POSITION_COLOR);
 
             for (ClientBullet bullet : pointBullets) {
-                Vec3d pos = bullet.getRenderPosition(partialTicks);
-                double x = pos.x - viewX;
-                double y = pos.y - viewY;
-                double z = pos.z - viewZ;
-                // 从 customData 读取颜色，若没有则默认红色
+                bullet.getRenderPosition(partialTicks, renderPos);
+                double x = renderPos[0] - viewX;
+                double y = renderPos[1] - viewY;
+                double z = renderPos[2] - viewZ;
+
                 int color = getColorFromCustomData(bullet.getCustomData(), 0xFF5555);
                 float r = ((color >> 16) & 0xFF) / 255f;
                 float g = ((color >> 8) & 0xFF) / 255f;
                 float b = (color & 0xFF) / 255f;
+
                 buf.pos(x, y, z).color(r, g, b, 1.0F).endVertex();
             }
             tess.draw();
@@ -91,37 +93,36 @@ public class RenderHandler {
                 ResourceLocation tex = entry.getKey();
                 List<ClientBullet> list = entry.getValue();
 
-                // 绑定纹理
                 mc.getTextureManager().bindTexture(tex);
 
                 BufferBuilder buf = tess.getBuffer();
                 buf.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
 
                 for (ClientBullet bullet : list) {
-                    Vec3d pos = bullet.getRenderPosition(partialTicks);
-                    double x = pos.x - viewX;
-                    double y = pos.y - viewY;
-                    double z = pos.z - viewZ;
+                    bullet.getRenderPosition(partialTicks, renderPos);
+                    double x = renderPos[0] - viewX;
+                    double y = renderPos[1] - viewY;
+                    double z = renderPos[2] - viewZ;
 
-                    // 从 customData 获取大小，默认 0.5
                     float size = getSizeFromCustomData(bullet.getCustomData(), 0.5f);
-                    // 获取颜色（用于叠加，默认为白色）
                     int color = getColorFromCustomData(bullet.getCustomData(), 0xFFFFFF);
                     float r = ((color >> 16) & 0xFF) / 255f;
                     float g = ((color >> 8) & 0xFF) / 255f;
                     float b = (color & 0xFF) / 255f;
 
-                    // 构建面向玩家的四边形（公告板）
-                    // 计算垂直向量：Y轴固定，水平面始终面向摄像机
-                    double dx = x; // 相对于视图的位置
-                    double dy = y;
+                    // 公告板计算（始终面向摄像机）
+                    double dx = x;
                     double dz = z;
                     double f = Math.sqrt(dx * dx + dz * dz);
-                    // 避免除以零
-                    float sinYaw = (float) (dx / f);
-                    float cosYaw = (float) (dz / f);
+                    float sinYaw, cosYaw;
+                    if (f < 1e-7) { // 当子弹正上方/正下方时，任意朝向均可，默认朝Z
+                        sinYaw = 0f;
+                        cosYaw = 1f;
+                    } else {
+                        sinYaw = (float) (dx / f);
+                        cosYaw = (float) (dz / f);
+                    }
 
-                    // 四个顶点（相对于弹幕中心）
                     double half = size / 2.0;
                     // 左下
                     buf.pos(x - half * cosYaw, y - half, z - half * sinYaw)
