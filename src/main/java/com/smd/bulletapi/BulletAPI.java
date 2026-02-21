@@ -59,6 +59,7 @@ public class BulletAPI {
         private ICollisionShape collisionShape;
         private Consumer<CollisionContext> onCollision;
         private Consumer<Bullet> tickCallback;
+        private boolean onlyPlayer = false;
 
         private BulletBuilder(World world) {
             this.world = world;
@@ -88,6 +89,11 @@ public class BulletAPI {
 
         public BulletBuilder texture(String texture) {
             this.texture = texture;
+            return this;
+        }
+
+        public BulletBuilder onlyPlayer(boolean onlyPlayer) {
+            this.onlyPlayer = onlyPlayer;
             return this;
         }
 
@@ -151,7 +157,7 @@ public class BulletAPI {
             return DanmakuManager.getInstance().spawnBullet(
                     world, position, velocity, life, damage,
                     texture, color, size, rendererType, customData,
-                    collisionShape, onCollision, tickCallback
+                    collisionShape, onCollision, tickCallback, onlyPlayer
             );
         }
     }

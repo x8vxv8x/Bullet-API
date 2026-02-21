@@ -5,10 +5,13 @@ import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketDanmaku;
 import com.smd.bulletapi.server.Bullet;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -42,12 +45,13 @@ public class DanmakuManager {
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
                            String texture, int color, float size, String rendererType,
                            NBTTagCompound customData, ICollisionShape collisionShape,
-                           Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback) {
+                           Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback,
+                           boolean onlyPlayer) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, onCollision, tickCallback);
+                collisionShape, onCollision, tickCallback, onlyPlayer);
         getWorldMap(world).put(id, bullet);
         PacketHandler.sendToAll(SPacketDanmaku.createSpawn(
                 id, position, velocity, life, damage, texture, color, size, rendererType, customData));
@@ -86,23 +90,26 @@ public class DanmakuManager {
                 }
 
                 // 碰撞检测
-                List<EntityPlayer> players = world.playerEntities;
                 for (Bullet bullet : map.values()) {
                     ICollisionShape shape = bullet.getCollisionShape();
                     if (shape == null || bullet.isDead()) continue;
 
                     Vec3d pos = bullet.getPosition();
-                    for (EntityPlayer player : players) {
-                        if (player.isDead || player.capabilities.disableDamage) continue;
-
-                        if (shape.checkCollision(pos, player)) {
-                            CollisionContext ctx = new CollisionContext(bullet, world, player);
-                            BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, player, ctx);
-                            MinecraftForge.EVENT_BUS.post(eventBus);
-                            if (!eventBus.isCanceled()) {
-                                bullet.onCollision(world, player);
-                                if (!ctx.canceled) {
-                                    player.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
+                    if (bullet.isOnlyPlayer()) {
+                        // 只检测玩家（玩家也是 EntityLivingBase）
+                        for (EntityPlayer player : world.playerEntities) {
+                            if (player.isDead || player.capabilities.disableDamage) continue;
+                            if (shape.checkCollision(pos, player)) {
+                                handleCollision(bullet, world, player);
+                            }
+                        }
+                    } else {
+                        // 检测所有 EntityLivingBase 实体
+                        for (Entity entity : world.loadedEntityList) {
+                            if (entity.isDead) continue;
+                            if (entity instanceof EntityLivingBase) {
+                                if (shape.checkCollision(pos, entity)) {
+                                    handleCollision(bullet, world, entity);
                                 }
                             }
                         }
@@ -111,6 +118,19 @@ public class DanmakuManager {
 
                 // 移除已死亡的弹幕
                 map.entrySet().removeIf(entry -> entry.getValue().isDead());
+            }
+        }
+    }
+
+    private void handleCollision(Bullet bullet, World world, Entity entity) {
+        System.out.println("碰撞触发: 弹幕 " + bullet.getId() + " 击中 " + entity.getName());
+        CollisionContext ctx = new CollisionContext(bullet, world, entity);
+        BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, entity, ctx);
+        MinecraftForge.EVENT_BUS.post(eventBus);
+        if (!eventBus.isCanceled()) {
+            bullet.onCollision(world, entity);
+            if (!ctx.canceled) {
+                entity.setDead();
             }
         }
     }

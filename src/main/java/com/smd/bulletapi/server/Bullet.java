@@ -20,6 +20,7 @@ public class Bullet {
     private String texture;
     private int color;
     private float size;
+    private boolean onlyPlayer;
     private String rendererType;
     private NBTTagCompound customData;
     private ICollisionShape collisionShape;
@@ -29,7 +30,7 @@ public class Bullet {
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
                   NBTTagCompound customData, ICollisionShape collisionShape,
-                  Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback) {
+                  Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer) {
         this.id = id;
         this.position = position;
         this.velocity = velocity;
@@ -45,6 +46,7 @@ public class Bullet {
         this.collisionShape = collisionShape;
         this.onCollision = onCollision;
         this.tickCallback = tickCallback;
+        this.onlyPlayer = onlyPlayer;
     }
 
     public void update(World world) {
@@ -80,6 +82,7 @@ public class Bullet {
     public Consumer<CollisionContext> getOnCollision() { return onCollision; }
     public Consumer<Bullet> getTickCallback() { return tickCallback; }
     public void setTickCallback(Consumer<Bullet> tickCallback) { this.tickCallback = tickCallback; }
+    public boolean isOnlyPlayer() { return onlyPlayer; }
 
     public void onCollision(World world, Entity hitEntity) {
         if (onCollision != null) {

@@ -32,11 +32,11 @@ public class TestEvent {
         String texturePath = "bulletapi:textures/entity/bullet.png";
         int count = 10000;
         int lifeTime = 300;          // 15秒
-        float damage = 0.0F;
-        ICollisionShape collisionShape = new SphereShape(2.0);
+        float damage = 2.0F;
+        ICollisionShape collisionShape = new SphereShape(8.0);
 
         java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
-            ctx.damage = 5.0F;
+            ctx.damage = ctx.bullet.getDamage();
             ctx.world.playSound(null, ctx.hitEntity.posX, ctx.hitEntity.posY, ctx.hitEntity.posZ,
                     SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.8F, 1.2F);
             ctx.world.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
@@ -70,6 +70,7 @@ public class TestEvent {
                     .rendererType("billboard")
                     .collisionShape(collisionShape)
                     .onCollision(onCollision)
+                    .onlyPlayer(false)
                     .spawn();
         }
 
