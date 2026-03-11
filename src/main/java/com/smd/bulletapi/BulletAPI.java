@@ -6,6 +6,8 @@ import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.proxy.CommonProxy;
 import com.smd.bulletapi.server.Bullet;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -60,6 +62,8 @@ public class BulletAPI {
         private Consumer<CollisionContext> onCollision;
         private Consumer<Bullet> tickCallback;
         private boolean onlyPlayer = false;
+        private EntityLivingBase shooter;
+        private ItemStack shooterHeldItem;
 
         private BulletBuilder(World world) {
             this.world = world;
@@ -149,6 +153,16 @@ public class BulletAPI {
             return this;
         }
 
+        public BulletBuilder shooter(EntityLivingBase shooter) {
+            this.shooter = shooter;
+            return this;
+        }
+
+        public BulletBuilder shooterHeldItem(ItemStack item) {
+            this.shooterHeldItem = item == null ? null : item.copy();
+            return this;
+        }
+
         public int spawn() {
             if (position == null) throw new IllegalStateException("Position must be set");
             if (velocity == null) throw new IllegalStateException("Velocity must be set");
@@ -157,7 +171,8 @@ public class BulletAPI {
             return DanmakuManager.getInstance().spawnBullet(
                     world, position, velocity, life, damage,
                     texture, color, size, rendererType, customData,
-                    collisionShape, onCollision, tickCallback, onlyPlayer
+                    collisionShape, onCollision, tickCallback, onlyPlayer,
+                    shooter, shooterHeldItem
             );
         }
     }

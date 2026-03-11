@@ -8,6 +8,7 @@ import com.smd.bulletapi.server.Bullet;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.Vec3d;
@@ -17,6 +18,8 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,19 +40,17 @@ public class DanmakuManager {
         return worldBullets.computeIfAbsent(world, w -> new ConcurrentHashMap<>());
     }
 
-    /**
-     * 生成弹幕并返回其唯一ID
-     */
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
                            String texture, int color, float size, String rendererType,
                            NBTTagCompound customData, ICollisionShape collisionShape,
                            Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback,
-                           boolean onlyPlayer) {
+                           boolean onlyPlayer, EntityLivingBase shooter, ItemStack shooterHeldItem) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, onCollision, tickCallback, onlyPlayer);
+                collisionShape, onCollision, tickCallback, onlyPlayer,
+                shooter, shooterHeldItem);
         getWorldMap(world).put(id, bullet);
         PacketHandler.sendToAll(SPacketDanmaku.createSpawn(
                 id, position, velocity, life, damage, texture, color, size, rendererType, customData));
@@ -82,19 +83,19 @@ public class DanmakuManager {
         if (event.phase == TickEvent.Phase.END) {
             Map<Integer, Bullet> map = worldBullets.get(world);
             if (map != null) {
-                // 更新所有弹幕位置
+                // update bullet positions first
                 for (Bullet bullet : map.values()) {
                     bullet.update(world);
                 }
 
-                // 碰撞检测
-                for (Bullet bullet : map.values()) {
+                List<Bullet> bullets = new ArrayList<>(map.values());
+                for (Bullet bullet : bullets) {
                     ICollisionShape shape = bullet.getCollisionShape();
                     if (shape == null || bullet.isDead()) continue;
+                    if (map.get(bullet.getId()) != bullet) continue;
 
                     Vec3d pos = bullet.getPosition();
                     if (bullet.isOnlyPlayer()) {
-                        // 只检测玩家（玩家也是 EntityLivingBase）
                         for (EntityPlayer player : world.playerEntities) {
                             if (player.isDead || player.capabilities.disableDamage) continue;
                             if (shape.checkCollision(pos, player)) {
@@ -102,8 +103,8 @@ public class DanmakuManager {
                             }
                         }
                     } else {
-                        // 检测所有 EntityLivingBase 实体
-                        for (Entity entity : world.loadedEntityList) {
+                        List<Entity> entities = new ArrayList<>(world.loadedEntityList);
+                        for (Entity entity : entities) {
                             if (entity.isDead) continue;
                             if (entity instanceof EntityLivingBase) {
                                 if (shape.checkCollision(pos, entity)) {
@@ -114,7 +115,6 @@ public class DanmakuManager {
                     }
                 }
 
-                // 移除已死亡的弹幕
                 map.entrySet().removeIf(entry -> entry.getValue().isDead());
             }
         }

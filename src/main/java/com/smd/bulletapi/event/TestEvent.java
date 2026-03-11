@@ -8,6 +8,7 @@ import com.smd.bulletapi.common.collision.SphereShape;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.Vec3d;
@@ -37,6 +38,16 @@ public class TestEvent {
 
         java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
             ctx.damage = ctx.bullet.getDamage();
+            EntityLivingBase shooter = ctx.shooter;
+            if (shooter instanceof EntityPlayer) {
+                EntityPlayer shooterPlayer = (EntityPlayer) shooter;
+                ItemStack held = ctx.shooterHeldItem;
+                String itemName = held == null ? "空手" : held.getDisplayName();
+                shooterPlayer.sendMessage(new TextComponentString(
+                        String.format("弹幕击中 %s，玩家：%s，手持：%s",
+                                ctx.hitEntity.getName(), shooterPlayer.getName(), itemName)
+                ));
+            }
             ctx.world.playSound(null, ctx.hitEntity.posX, ctx.hitEntity.posY, ctx.hitEntity.posZ,
                     SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.8F, 1.2F);
             ctx.world.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
@@ -56,7 +67,7 @@ public class TestEvent {
 
             // 计算从生成位置指向目标的方向向量
             Vec3d toTarget = targetPos.subtract(spawnPos);
-            double speed = 0.8; // 速度大小（格/tick）
+            double speed = 0.8; // 速度大小，单位 block/tick
             Vec3d initialVel = toTarget.normalize().scale(speed);
 
             BulletAPI.bullet(player.world)
@@ -70,6 +81,8 @@ public class TestEvent {
                     .rendererType("billboard")
                     .collisionShape(collisionShape)
                     .onCollision(onCollision)
+                    .shooter(player)
+                    .shooterHeldItem(player.getHeldItemMainhand())
                     .onlyPlayer(false)
                     .spawn();
         }

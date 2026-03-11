@@ -3,6 +3,8 @@ package com.smd.bulletapi.server;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -26,11 +28,14 @@ public class Bullet {
     private ICollisionShape collisionShape;
     private Consumer<CollisionContext> onCollision;
     private Consumer<Bullet> tickCallback; // 新增：每 tick 回调
+    private final EntityLivingBase shooter;
+    private final ItemStack shooterHeldItem;
 
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
                   NBTTagCompound customData, ICollisionShape collisionShape,
-                  Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer) {
+                  Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer,
+                  EntityLivingBase shooter, ItemStack shooterHeldItem) {
         this.id = id;
         this.position = position;
         this.velocity = velocity;
@@ -47,6 +52,8 @@ public class Bullet {
         this.onCollision = onCollision;
         this.tickCallback = tickCallback;
         this.onlyPlayer = onlyPlayer;
+        this.shooter = shooter;
+        this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
     }
 
     public void update(World world) {
@@ -63,7 +70,7 @@ public class Bullet {
         if (life <= 0) dead = true;
     }
 
-    // Getter / Setter 方法（原有+新增）
+    // Getter / Setter 方法
     public int getId() { return id; }
     public Vec3d getPosition() { return position; }
     public Vec3d getVelocity() { return velocity; }
@@ -83,6 +90,8 @@ public class Bullet {
     public Consumer<Bullet> getTickCallback() { return tickCallback; }
     public void setTickCallback(Consumer<Bullet> tickCallback) { this.tickCallback = tickCallback; }
     public boolean isOnlyPlayer() { return onlyPlayer; }
+    public EntityLivingBase getShooter() { return shooter; }
+    public ItemStack getShooterHeldItem() { return shooterHeldItem; }
 
     public void onCollision(World world, Entity hitEntity) {
         if (onCollision != null) {
