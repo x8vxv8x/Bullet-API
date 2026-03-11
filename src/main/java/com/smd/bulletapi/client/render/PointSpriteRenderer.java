@@ -31,11 +31,9 @@ public class PointSpriteRenderer implements IBulletRenderer {
         buf.begin(GL11.GL_POINTS, DefaultVertexFormats.POSITION_COLOR);
 
         for (ClientBullet bullet : bullets) {
-            double[] pos = new double[3];
-            bullet.getRenderPosition(partialTicks, pos);
-            double x = pos[0] - viewX;
-            double y = pos[1] - viewY;
-            double z = pos[2] - viewZ;
+            double x = bullet.getRenderX(partialTicks) - viewX;
+            double y = bullet.getRenderY(partialTicks) - viewY;
+            double z = bullet.getRenderZ(partialTicks) - viewZ;
 
             int color = bullet.getColor();
             float r = ((color >> 16) & 0xFF) / 255f;

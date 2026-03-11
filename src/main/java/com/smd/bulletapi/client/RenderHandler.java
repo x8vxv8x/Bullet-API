@@ -15,6 +15,7 @@ import java.util.Map;
 
 @SideOnly(Side.CLIENT)
 public class RenderHandler {
+    private static final Map<IBulletRenderer, List<ClientBullet>> RENDER_GROUPS = new HashMap<>();
 
     @SubscribeEvent
     public static void onRenderWorldLast(RenderWorldLastEvent event) {
@@ -30,12 +31,12 @@ public class RenderHandler {
         double viewZ = mc.player.prevPosZ + (mc.player.posZ - mc.player.prevPosZ) * partialTicks;
 
         // 按渲染器分组，以便批量渲染
-        Map<IBulletRenderer, List<ClientBullet>> groups = new HashMap<>();
+        RENDER_GROUPS.clear();
         for (ClientBullet bullet : cache.getBullets().values()) {
             if (bullet.isDead()) continue;
             IBulletRenderer renderer = bullet.getRenderer();
             if (renderer != null) {
-                groups.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
             }
         }
 
@@ -48,9 +49,10 @@ public class RenderHandler {
         GlStateManager.depthMask(false); // 允许透明叠加，根据需求可选
 
         // 遍历每个渲染器组
-        for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : groups.entrySet()) {
+        for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : RENDER_GROUPS.entrySet()) {
             IBulletRenderer renderer = entry.getKey();
             List<ClientBullet> bullets = entry.getValue();
+            if (bullets.isEmpty()) continue;
 
             if (renderer.canBatch()) {
                 // 支持批量渲染的渲染器一次性提交所有子弹

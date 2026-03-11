@@ -14,17 +14,29 @@ public class AABBShape implements ICollisionShape {
     }
 
     @Override
+    public double getBroadphaseRadius() {
+        double halfW = width / 2.0;
+        double halfH = height / 2.0;
+        return Math.max(halfW, halfH);
+    }
+
+    @Override
     public boolean intersects(Vec3d shapePos, Entity target) {
+        return intersects(shapePos.x, shapePos.y, shapePos.z, target);
+    }
+
+    @Override
+    public boolean intersects(double x, double y, double z, Entity target) {
         if (!(target instanceof EntityLivingBase)) return false;
         AxisAlignedBB box = target.getEntityBoundingBox();
         double halfW = width / 2.0;
         double halfH = height / 2.0;
-        double minX = shapePos.x - halfW;
-        double maxX = shapePos.x + halfW;
-        double minY = shapePos.y - halfH;
-        double maxY = shapePos.y + halfH;
-        double minZ = shapePos.z - halfW;
-        double maxZ = shapePos.z + halfW;
+        double minX = x - halfW;
+        double maxX = x + halfW;
+        double minY = y - halfH;
+        double maxY = y + halfH;
+        double minZ = z - halfW;
+        double maxZ = z + halfW;
         return box.intersects(minX, minY, minZ, maxX, maxY, maxZ);
     }
 }

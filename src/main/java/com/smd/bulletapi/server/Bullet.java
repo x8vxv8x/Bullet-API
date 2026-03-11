@@ -13,8 +13,12 @@ import java.util.function.Consumer;
 
 public class Bullet {
     private final int id;
-    private Vec3d position;
-    private Vec3d velocity;
+    private double positionX;
+    private double positionY;
+    private double positionZ;
+    private double velocityX;
+    private double velocityY;
+    private double velocityZ;
     private int life;
     private final int maxLife;
     private float damage;
@@ -37,8 +41,12 @@ public class Bullet {
                   Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer,
                   EntityLivingBase shooter, ItemStack shooterHeldItem) {
         this.id = id;
-        this.position = position;
-        this.velocity = velocity;
+        this.positionX = position.x;
+        this.positionY = position.y;
+        this.positionZ = position.z;
+        this.velocityX = velocity.x;
+        this.velocityY = velocity.y;
+        this.velocityZ = velocity.z;
         this.maxLife = maxLife;
         this.life = maxLife;
         this.damage = damage;
@@ -65,16 +73,30 @@ public class Bullet {
         }
 
         // 更新位置
-        position = position.add(velocity);
+        positionX += velocityX;
+        positionY += velocityY;
+        positionZ += velocityZ;
         life--;
         if (life <= 0) dead = true;
     }
 
     // Getter / Setter 方法
     public int getId() { return id; }
-    public Vec3d getPosition() { return position; }
-    public Vec3d getVelocity() { return velocity; }
-    public void setVelocity(Vec3d velocity) { this.velocity = velocity; }
+    public Vec3d getPosition() { return new Vec3d(positionX, positionY, positionZ); }
+    public double getPosX() { return positionX; }
+    public double getPosY() { return positionY; }
+    public double getPosZ() { return positionZ; }
+    public Vec3d getVelocity() { return new Vec3d(velocityX, velocityY, velocityZ); }
+    public void setVelocity(Vec3d velocity) {
+        this.velocityX = velocity.x;
+        this.velocityY = velocity.y;
+        this.velocityZ = velocity.z;
+    }
+    public void setVelocity(double x, double y, double z) {
+        this.velocityX = x;
+        this.velocityY = y;
+        this.velocityZ = z;
+    }
     public int getLife() { return life; }
     public float getDamage() { return damage; }
     public boolean isDead() { return dead; }
@@ -93,9 +115,12 @@ public class Bullet {
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
 
-    public void onCollision(World world, Entity hitEntity) {
+    /**
+     * 优先使用该入口，以复用同一次碰撞链路中的 CollisionContext。
+     */
+    public void onCollision(CollisionContext context) {
         if (onCollision != null) {
-            onCollision.accept(new CollisionContext(this, world, hitEntity));
+            onCollision.accept(context);
         }
     }
 }

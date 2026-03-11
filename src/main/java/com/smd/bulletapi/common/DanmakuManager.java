@@ -11,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
@@ -52,8 +53,9 @@ public class DanmakuManager {
                 collisionShape, onCollision, tickCallback, onlyPlayer,
                 shooter, shooterHeldItem);
         getWorldMap(world).put(id, bullet);
-        PacketHandler.sendToAll(SPacketDanmaku.createSpawn(
-                id, position, velocity, life, damage, texture, color, size, rendererType, customData));
+        PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(
+                id, position, velocity, life, damage, texture, color, size, rendererType, customData),
+                world.provider.getDimension());
         return id;
     }
 
@@ -61,7 +63,7 @@ public class DanmakuManager {
         Map<Integer, Bullet> map = worldBullets.get(world);
         if (map != null) {
             map.remove(id);
-            PacketHandler.sendToAll(SPacketDanmaku.createRemove(id));
+            PacketHandler.sendToDimension(SPacketDanmaku.createRemove(id), world.provider.getDimension());
         }
     }
 
@@ -71,7 +73,7 @@ public class DanmakuManager {
             Bullet bullet = map.get(id);
             if (bullet != null) {
                 bullet.setVelocity(newVelocity);
-                PacketHandler.sendToAll(SPacketDanmaku.createUpdate(id, newVelocity));
+                PacketHandler.sendToDimension(SPacketDanmaku.createUpdate(id, newVelocity), world.provider.getDimension());
             }
         }
     }
@@ -89,26 +91,39 @@ public class DanmakuManager {
                 }
 
                 List<Bullet> bullets = new ArrayList<>(map.values());
+                List<EntityLivingBase> fallbackEntities = new ArrayList<>();
+                for (Entity entity : world.loadedEntityList) {
+                    if (!entity.isDead && entity instanceof EntityLivingBase) {
+                        fallbackEntities.add((EntityLivingBase) entity);
+                    }
+                }
+
                 for (Bullet bullet : bullets) {
                     ICollisionShape shape = bullet.getCollisionShape();
                     if (shape == null || bullet.isDead()) continue;
                     if (map.get(bullet.getId()) != bullet) continue;
 
-                    Vec3d pos = bullet.getPosition();
+                    double posX = bullet.getPosX();
+                    double posY = bullet.getPosY();
+                    double posZ = bullet.getPosZ();
                     if (bullet.isOnlyPlayer()) {
                         for (EntityPlayer player : world.playerEntities) {
                             if (player.isDead || player.capabilities.disableDamage) continue;
-                            if (shape.checkCollision(pos, player)) {
+                            if (shape.checkCollision(posX, posY, posZ, player)) {
                                 handleCollision(bullet, world, player);
+                                if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                                    break;
+                                }
                             }
                         }
                     } else {
-                        List<Entity> entities = new ArrayList<>(world.loadedEntityList);
-                        for (Entity entity : entities) {
+                        List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
+                        for (EntityLivingBase entity : candidates) {
                             if (entity.isDead) continue;
-                            if (entity instanceof EntityLivingBase) {
-                                if (shape.checkCollision(pos, entity)) {
-                                    handleCollision(bullet, world, entity);
+                            if (shape.checkCollision(posX, posY, posZ, entity)) {
+                                handleCollision(bullet, world, entity);
+                                if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                                    break;
                                 }
                             }
                         }
@@ -120,12 +135,27 @@ public class DanmakuManager {
         }
     }
 
+    private List<EntityLivingBase> getCollisionCandidates(World world, Bullet bullet, ICollisionShape shape,
+                                                          List<EntityLivingBase> fallbackEntities) {
+        double radius = shape.getBroadphaseRadius();
+        if (radius <= 0.0D) {
+            return fallbackEntities;
+        }
+
+        double x = bullet.getPosX();
+        double y = bullet.getPosY();
+        double z = bullet.getPosZ();
+        AxisAlignedBB searchBox = new AxisAlignedBB(x, y, z, x, y, z).grow(radius + 4.0D);
+        return world.getEntitiesWithinAABB(EntityLivingBase.class, searchBox);
+    }
+
     private void handleCollision(Bullet bullet, World world, Entity entity) {
+        // 单次碰撞链路（事件 -> 回调 -> 默认伤害）复用同一个 CollisionContext。
         CollisionContext ctx = new CollisionContext(bullet, world, entity);
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
         if (!eventBus.isCanceled()) {
-            bullet.onCollision(world, entity);
+            bullet.onCollision(ctx);
             if (!ctx.canceled) {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }

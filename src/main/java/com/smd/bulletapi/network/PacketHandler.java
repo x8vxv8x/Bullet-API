@@ -18,4 +18,8 @@ public class PacketHandler {
     public static void sendToAll(IMessage message) {
         INSTANCE.sendToAll(message);
     }
+
+    public static void sendToDimension(IMessage message, int dimension) {
+        INSTANCE.sendToDimension(message, dimension);
+    }
 }
