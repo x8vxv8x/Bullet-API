@@ -6,6 +6,16 @@ import java.util.Collection;
 
 public interface IBulletRenderer {
 
+    /**
+     * 每个渲染器分组开始渲染前调用，可覆盖默认渲染状态
+     */
+    default void beginRender() {}
+
+    /**
+     * 每个渲染器分组渲染结束后调用，用于恢复渲染状态
+     */
+    default void endRender() {}
+
     default boolean canBatch() { return false; }
 
     default void renderBatch(Collection<ClientBullet> bullets, float partialTicks, double viewX, double viewY, double viewZ) {

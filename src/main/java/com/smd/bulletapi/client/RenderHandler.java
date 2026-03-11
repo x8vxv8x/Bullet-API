@@ -54,14 +54,19 @@ public class RenderHandler {
             List<ClientBullet> bullets = entry.getValue();
             if (bullets.isEmpty()) continue;
 
-            if (renderer.canBatch()) {
-                // 支持批量渲染的渲染器一次性提交所有子弹
-                renderer.renderBatch(bullets, partialTicks, viewX, viewY, viewZ);
-            } else {
-                // 不支持批量的渲染器逐个渲染
-                for (ClientBullet bullet : bullets) {
-                    renderer.render(bullet, partialTicks, viewX, viewY, viewZ);
+            renderer.beginRender();
+            try {
+                if (renderer.canBatch()) {
+                    // 支持批量渲染的渲染器一次性提交所有子弹
+                    renderer.renderBatch(bullets, partialTicks, viewX, viewY, viewZ);
+                } else {
+                    // 不支持批量的渲染器逐个渲染
+                    for (ClientBullet bullet : bullets) {
+                        renderer.render(bullet, partialTicks, viewX, viewY, viewZ);
+                    }
                 }
+            } finally {
+                renderer.endRender();
             }
         }
 

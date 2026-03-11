@@ -17,7 +17,7 @@ public class RendererFactory {
         // 注册内置渲染器
         REGISTRY.put("billboard", ctx -> BillboardRenderer.INSTANCE);
         REGISTRY.put("point", ctx -> PointSpriteRenderer.INSTANCE);
-        // 可在此扩展其他渲染器，如 "entity_model", "obj_model"
+        // 可在此扩展其他渲染器，如 "entity_model"
     }
 
     /**

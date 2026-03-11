@@ -28,11 +28,19 @@ public class TestEvent {
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
         EntityLivingBase victim = event.getEntityLiving();
 
+        if (player.isSneaking()) {
+            spawnModelTestBullets(player, victim);
+        } else {
+            spawnDefaultBillboardTest(player, victim);
+        }
+    }
+
+    private static void spawnDefaultBillboardTest(EntityPlayer player, EntityLivingBase victim) {
         double ringRadius = 8.0;
         double heightOffset = player.getEyeHeight() + 2.0;
         String texturePath = "bulletapi:textures/entity/bullet.png";
-        int count = 10000;
-        int lifeTime = 300;          // 15秒
+        int count = 100;
+        int lifeTime = 200;          // 15秒
         float damage = 2.0F;
         ICollisionShape collisionShape = new SphereShape(8.0);
 
@@ -90,6 +98,58 @@ public class TestEvent {
         int totalBullets = DanmakuManager.getInstance().getBulletCount(player.world);
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 已生成 %d 枚直线弹幕，当前世界弹幕总数: §e%d", count, totalBullets)
+        ));
+    }
+
+    private static void spawnModelTestBullets(EntityPlayer player, EntityLivingBase victim) {
+        double ringRadius = 6.0;
+        double heightOffset = player.getEyeHeight() + 1.0;
+        int count = 120;
+        int lifeTime = 120;
+        float damage = 2.0F;
+        double speed = 0.55;
+        ICollisionShape collisionShape = new SphereShape(1.2);
+
+        java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
+            ctx.damage = ctx.bullet.getDamage();
+            BulletAPI.removeBullet(ctx.world, ctx.bullet.getId());
+        };
+
+        Vec3d fixedCenter = player.getPositionVector().add(0, heightOffset, 0);
+        Vec3d targetPos = victim.getPositionVector().add(0, victim.height * 0.5, 0);
+
+        for (int i = 0; i < count; i++) {
+            double angle = Math.random() * 2 * Math.PI;
+            double dx = ringRadius * Math.cos(angle);
+            double dz = ringRadius * Math.sin(angle);
+            Vec3d spawnPos = fixedCenter.add(dx, 0, dz);
+            Vec3d velocity = targetPos.subtract(spawnPos).normalize().scale(speed);
+
+            BulletAPI.BulletBuilder builder = BulletAPI.bullet(player.world)
+                    .position(spawnPos)
+                    .velocity(velocity)
+                    .life(lifeTime)
+                    .damage(damage)
+                    .size(0.55f)
+                    .collisionShape(collisionShape)
+                    .onCollision(onCollision)
+                    .shooter(player)
+                    .shooterHeldItem(player.getHeldItemMainhand())
+                    .onlyPlayer(false);
+
+            builder.rendererType("model_json")
+                    .set("model", "minecraft:furnace")
+                    .set("variant", "inventory")
+                    .set("scale", 0.45f)
+                    .set("rot_mode", "velocity")
+                    .set("tint", 0x66CCFF);
+
+            builder.spawn();
+        }
+
+        int totalBullets = DanmakuManager.getInstance().getBulletCount(player.world);
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r 模型测试已触发（潜行模式），生成 %d 枚模型弹幕，当前总数: §e%d", count, totalBullets)
         ));
     }
 }
