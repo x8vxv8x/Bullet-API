@@ -1,6 +1,7 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.client.render.IBulletRenderer;
+import com.smd.bulletapi.client.render.ILaserRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -16,11 +17,15 @@ import java.util.Map;
 @SideOnly(Side.CLIENT)
 public class RenderHandler {
     private static final Map<IBulletRenderer, List<ClientBullet>> RENDER_GROUPS = new HashMap<>();
+    private static final Map<ILaserRenderer, List<ClientLaser>> LASER_GROUPS = new HashMap<>();
 
     @SubscribeEvent
     public static void onRenderWorldLast(RenderWorldLastEvent event) {
         ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
-        if (cache == null || cache.getBullets().isEmpty()) return;
+        ClientLaserCache laserCache = ClientLaserCache.INSTANCE;
+        boolean hasBullets = cache != null && !cache.getBullets().isEmpty();
+        boolean hasLasers = laserCache != null && !laserCache.getLasers().isEmpty();
+        if (!hasBullets && !hasLasers) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         float partialTicks = event.getPartialTicks();
@@ -30,13 +35,15 @@ public class RenderHandler {
         double viewY = mc.player.prevPosY + (mc.player.posY - mc.player.prevPosY) * partialTicks;
         double viewZ = mc.player.prevPosZ + (mc.player.posZ - mc.player.prevPosZ) * partialTicks;
 
-        // 按渲染器分组，以便批量渲染
-        RENDER_GROUPS.clear();
-        for (ClientBullet bullet : cache.getBullets().values()) {
-            if (bullet.isDead()) continue;
-            IBulletRenderer renderer = bullet.getRenderer();
-            if (renderer != null) {
-                RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+        if (hasBullets) {
+            // 按渲染器分组，以便批量渲染
+            RENDER_GROUPS.clear();
+            for (ClientBullet bullet : cache.getBullets().values()) {
+                if (bullet.isDead()) continue;
+                IBulletRenderer renderer = bullet.getRenderer();
+                if (renderer != null) {
+                    RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                }
             }
         }
 
@@ -48,25 +55,56 @@ public class RenderHandler {
         GlStateManager.disableLighting();
         GlStateManager.depthMask(false); // 允许透明叠加，根据需求可选
 
-        // 遍历每个渲染器组
-        for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : RENDER_GROUPS.entrySet()) {
-            IBulletRenderer renderer = entry.getKey();
-            List<ClientBullet> bullets = entry.getValue();
-            if (bullets.isEmpty()) continue;
+        // 遍历每个渲染器组（弹幕）
+        if (hasBullets) {
+            for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : RENDER_GROUPS.entrySet()) {
+                IBulletRenderer renderer = entry.getKey();
+                List<ClientBullet> bullets = entry.getValue();
+                if (bullets.isEmpty()) continue;
 
-            renderer.beginRender();
-            try {
-                if (renderer.canBatch()) {
-                    // 支持批量渲染的渲染器一次性提交所有子弹
-                    renderer.renderBatch(bullets, partialTicks, viewX, viewY, viewZ);
-                } else {
-                    // 不支持批量的渲染器逐个渲染
-                    for (ClientBullet bullet : bullets) {
-                        renderer.render(bullet, partialTicks, viewX, viewY, viewZ);
+                renderer.beginRender();
+                try {
+                    if (renderer.canBatch()) {
+                        // 支持批量渲染的渲染器一次性提交所有子弹
+                        renderer.renderBatch(bullets, partialTicks, viewX, viewY, viewZ);
+                    } else {
+                        // 不支持批量的渲染器逐个渲染
+                        for (ClientBullet bullet : bullets) {
+                            renderer.render(bullet, partialTicks, viewX, viewY, viewZ);
+                        }
                     }
+                } finally {
+                    renderer.endRender();
                 }
-            } finally {
-                renderer.endRender();
+            }
+        }
+
+        // 渲染激光
+        if (hasLasers) {
+            LASER_GROUPS.clear();
+            for (ClientLaser laser : laserCache.getLasers().values()) {
+                ILaserRenderer renderer = laser.getRenderer();
+                if (renderer != null) {
+                    LASER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(laser);
+                }
+            }
+
+            for (Map.Entry<ILaserRenderer, List<ClientLaser>> entry : LASER_GROUPS.entrySet()) {
+                ILaserRenderer renderer = entry.getKey();
+                List<ClientLaser> lasers = entry.getValue();
+                if (lasers.isEmpty()) continue;
+                renderer.beginRender();
+                try {
+                    if (renderer.canBatch()) {
+                        renderer.renderBatch(lasers, partialTicks, viewX, viewY, viewZ);
+                    } else {
+                        for (ClientLaser laser : lasers) {
+                            renderer.render(laser, partialTicks, viewX, viewY, viewZ);
+                        }
+                    }
+                } finally {
+                    renderer.endRender();
+                }
             }
         }
 

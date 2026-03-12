@@ -2,6 +2,7 @@ package com.smd.bulletapi.event;
 
 import com.smd.bulletapi.BulletAPI;
 import com.smd.bulletapi.common.CollisionContext;
+import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
@@ -30,6 +31,8 @@ public class TestEvent {
 
         if (player.isSneaking()) {
             spawnModelTestBullets(player, victim);
+        } else if (player.isInWater()) {
+            spawnLaserTest(player);
         } else {
             spawnDefaultBillboardTest(player, victim);
         }
@@ -150,6 +153,35 @@ public class TestEvent {
         int totalBullets = DanmakuManager.getInstance().getBulletCount(player.world);
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 模型测试已触发（潜行模式），生成 %d 枚模型弹幕，当前总数: §e%d", count, totalBullets)
+        ));
+    }
+
+    private static void spawnLaserTest(EntityPlayer player) {
+        java.util.function.Consumer<LaserCollisionContext> onCollision = ctx -> {
+            ctx.damage = ctx.laser.getDamage();
+            ctx.world.playSound(null, ctx.hitEntity.posX, ctx.hitEntity.posY, ctx.hitEntity.posZ,
+                    SoundEvents.BLOCK_NOTE_HARP, SoundCategory.PLAYERS, 0.4F, 1.8F);
+        };
+
+        int id = BulletAPI.laser(player.world)
+                .shooter(player)
+                .shooterHeldItem(player.getHeldItemMainhand())
+                .followShooter(true)
+                .startOffset(new Vec3d(0, -0.25, 0))
+                .maxLength(28.0)
+                .thickness(0.6f)
+                .damage(2.5f)
+                .color(0x66CCFF)
+                .penetrate(true)
+                .blockStops(true)
+                .rendererType("laser_beam")
+                .eventIntervalTicks(5)
+                .onCollision(onCollision)
+                .life(60)
+                .spawn();
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r 激光测试已触发，id=%d", id)
         ));
     }
 }

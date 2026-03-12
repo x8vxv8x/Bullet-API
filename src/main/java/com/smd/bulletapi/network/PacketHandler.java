@@ -13,6 +13,7 @@ public class PacketHandler {
 
     public static void registerMessages() {
         INSTANCE.registerMessage(SPacketDanmaku.Handler.class, SPacketDanmaku.class, id++, Side.CLIENT);
+        INSTANCE.registerMessage(SPacketLaser.Handler.class, SPacketLaser.class, id++, Side.CLIENT);
     }
 
     public static void sendToAll(IMessage message) {
