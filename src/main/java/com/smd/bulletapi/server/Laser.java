@@ -26,6 +26,7 @@ public class Laser {
     private final boolean onlyPlayer;
     private final boolean blockStops;
     private final Vec3d startOffset;
+    private final Vec3d startOffsetLocal;
     private final int eventIntervalTicks;
     private final int color;
     private final String rendererType;
@@ -38,6 +39,7 @@ public class Laser {
                  float damage, int life, boolean penetrate,
                  boolean followShooter, boolean onlyPlayer, boolean blockStops,
                  Vec3d startOffset,
+                 Vec3d startOffsetLocal,
                  int eventIntervalTicks,
                  int color, String rendererType, NBTTagCompound customData,
                  Consumer<LaserCollisionContext> onCollision,
@@ -55,6 +57,7 @@ public class Laser {
         this.onlyPlayer = onlyPlayer;
         this.blockStops = blockStops;
         this.startOffset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
+        this.startOffsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
         this.eventIntervalTicks = Math.max(0, eventIntervalTicks);
         this.color = color;
         this.rendererType = rendererType;
@@ -74,8 +77,10 @@ public class Laser {
             Vec3d eye = shooter.getPositionEyes(1.0f);
             Vec3d look = shooter.getLookVec();
             if (look.lengthSquared() > 1.0E-6) {
-                start = eye.add(startOffset);
-                direction = look.normalize();
+                Vec3d forward = look.normalize();
+                Vec3d localOffset = toLocalOffset(forward, startOffsetLocal);
+                start = eye.add(startOffset).add(localOffset);
+                direction = forward;
             }
         }
         if (life > 0) {
@@ -114,10 +119,24 @@ public class Laser {
     public boolean isOnlyPlayer() { return onlyPlayer; }
     public boolean isBlockStops() { return blockStops; }
     public Vec3d getStartOffset() { return startOffset; }
+    public Vec3d getStartOffsetLocal() { return startOffsetLocal; }
     public int getEventIntervalTicks() { return eventIntervalTicks; }
     public int getColor() { return color; }
     public String getRendererType() { return rendererType; }
     public NBTTagCompound getCustomData() { return customData; }
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+
+    private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {
+        if (local == null) return new Vec3d(0, 0, 0);
+        Vec3d upRef = new Vec3d(0, 1, 0);
+        Vec3d right = forward.crossProduct(upRef);
+        if (right.lengthSquared() < 1.0E-6) {
+            upRef = new Vec3d(1, 0, 0);
+            right = forward.crossProduct(upRef);
+        }
+        right = right.normalize();
+        Vec3d up = right.crossProduct(forward).normalize();
+        return right.scale(local.x).add(up.scale(local.y)).add(forward.scale(local.z));
+    }
 }

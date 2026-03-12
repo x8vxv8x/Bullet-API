@@ -93,14 +93,18 @@ public class DanmakuManager {
                           boolean penetrate, boolean followShooter,
                           boolean onlyPlayer, boolean blockStops,
                           Vec3d startOffset,
+                          Vec3d startOffsetLocal,
                           int eventIntervalTicks,
                           Consumer<LaserCollisionContext> onCollision,
                           EntityLivingBase shooter, ItemStack shooterHeldItem) {
         if (world.isRemote) return -1;
         Vec3d offset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
+        Vec3d offsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
         if ((start == null || direction == null) && followShooter && shooter != null) {
             if (start == null) {
-                start = shooter.getPositionEyes(1.0f).add(offset);
+                Vec3d look = shooter.getLookVec();
+                Vec3d local = toLocalOffset(look, offsetLocal);
+                start = shooter.getPositionEyes(1.0f).add(offset).add(local);
             }
             if (direction == null) {
                 direction = shooter.getLookVec();
@@ -114,7 +118,7 @@ public class DanmakuManager {
         }
         int id = nextId.getAndIncrement();
         Laser laser = new Laser(id, start, direction, maxLength, thickness, damage,
-                life, penetrate, followShooter, onlyPlayer, blockStops, offset,
+                life, penetrate, followShooter, onlyPlayer, blockStops, offset, offsetLocal,
                 eventIntervalTicks,
                 color, rendererType, customData, onCollision, shooter, shooterHeldItem);
         getLaserWorldMap(world).put(id, laser);
@@ -348,6 +352,21 @@ public class DanmakuManager {
         double maxY = Math.max(start.y, end.y);
         double maxZ = Math.max(start.z, end.z);
         return new AxisAlignedBB(minX, minY, minZ, maxX, maxY, maxZ).grow(thickness);
+    }
+
+    private static Vec3d toLocalOffset(Vec3d look, Vec3d local) {
+        if (local == null) return new Vec3d(0, 0, 0);
+        if (look == null || look.lengthSquared() < 1.0E-6) return new Vec3d(0, 0, 0);
+        Vec3d forward = look.normalize();
+        Vec3d upRef = new Vec3d(0, 1, 0);
+        Vec3d right = forward.crossProduct(upRef);
+        if (right.lengthSquared() < 1.0E-6) {
+            upRef = new Vec3d(1, 0, 0);
+            right = forward.crossProduct(upRef);
+        }
+        right = right.normalize();
+        Vec3d up = right.crossProduct(forward).normalize();
+        return right.scale(local.x).add(up.scale(local.y)).add(forward.scale(local.z));
     }
 
     private double segmentBoxEntry(Vec3d start, Vec3d end, AxisAlignedBB box) {

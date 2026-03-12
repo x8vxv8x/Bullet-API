@@ -198,6 +198,7 @@ public class BulletAPI {
         private boolean onlyPlayer = false;
         private boolean blockStops = true;
         private Vec3d startOffset = new Vec3d(0, 0, 0);
+        private Vec3d startOffsetLocal = new Vec3d(0, 0, 0);
         private int eventIntervalTicks = 0;
         private Consumer<LaserCollisionContext> onCollision;
         private EntityLivingBase shooter;
@@ -219,6 +220,14 @@ public class BulletAPI {
 
         public LaserBuilder startOffset(Vec3d offset) {
             this.startOffset = offset == null ? new Vec3d(0, 0, 0) : offset;
+            return this;
+        }
+
+        /**
+         * 本地空间偏移：x=右，y=上，z=前（沿视线方向）
+         */
+        public LaserBuilder startOffsetLocal(Vec3d offset) {
+            this.startOffsetLocal = offset == null ? new Vec3d(0, 0, 0) : offset;
             return this;
         }
 
@@ -336,6 +345,7 @@ public class BulletAPI {
                     onlyPlayer,
                     blockStops,
                     startOffset,
+                    startOffsetLocal,
                     eventIntervalTicks,
                     onCollision,
                     shooter,

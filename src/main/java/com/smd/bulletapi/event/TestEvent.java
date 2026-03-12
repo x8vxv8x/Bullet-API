@@ -30,7 +30,7 @@ public class TestEvent {
         EntityLivingBase victim = event.getEntityLiving();
 
         if (player.isSneaking() && player.isInWater()) {
-            spawnLaserBlastTest(player);
+            spawnLaserPolyTest(player);
         } else if (player.isSneaking()) {
             spawnModelTestBullets(player, victim);
         } else if (player.isInWater()) {
@@ -169,9 +169,10 @@ public class TestEvent {
                 .shooter(player)
                 .shooterHeldItem(player.getHeldItemMainhand())
                 .followShooter(true)
-                .startOffset(new Vec3d(0, -0.25, 0))
+                .startOffset(new Vec3d(0, 0, 0))
+                .startOffsetLocal(new Vec3d(0, -0.25, 0.6))
                 .maxLength(28.0)
-                .thickness(0.6f)
+                .thickness(0.4f)
                 .damage(2.5f)
                 .color(0x66CCFF)
                 .penetrate(true)
@@ -221,6 +222,41 @@ public class TestEvent {
 
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 激光爆裂测试已触发，id=%d", id)
+        ));
+    }
+
+    private static void spawnLaserPolyTest(EntityPlayer player) {
+        java.util.function.Consumer<LaserCollisionContext> onCollision = ctx -> {
+            ctx.damage = ctx.laser.getDamage();
+        };
+
+        int id = BulletAPI.laser(player.world)
+                .shooter(player)
+                .shooterHeldItem(player.getHeldItemMainhand())
+                .followShooter(true)
+                .startOffset(new Vec3d(0, -0.6, 0))
+                .maxLength(32.0)
+                .thickness(0.8f)
+                .damage(3.0f)
+                .color(0x66CCFF)
+                .penetrate(true)
+                .blockStops(true)
+                .rendererType("laser_poly")
+                .set("alpha", 0.8f)
+                .set("poly_sides", 8)
+                .set("core_scale", 0.45f)
+                .set("shell_scale", 1.05f)
+                .set("pulse_amp", 0.18f)
+                .set("pulse_speed", 0.4f)
+                .set("core_color", 0xFFFFFF)
+                .set("shell_color", 0x66CCFF)
+                .set("shell_color_end", 0x3366FF)
+                .onCollision(onCollision)
+                .life(60)
+                .spawn();
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r 多面体激光测试已触发，id=%d", id)
         ));
     }
 }
