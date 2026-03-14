@@ -40,17 +40,17 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 @InternalApi
 public class DanmakuManager {
     private static final DanmakuManager INSTANCE = new DanmakuManager();
-    private final Map<World, Map<Integer, Bullet>> worldBullets = new ConcurrentHashMap<>();
-    private final Map<World, Map<Integer, Laser>> worldLasers = new ConcurrentHashMap<>();
+    private final Map<World, Map<Integer, Bullet>> worldBullets = new HashMap<>();
+    private final Map<World, Map<Integer, Laser>> worldLasers = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(0);
 
     private DanmakuManager() {}
@@ -60,11 +60,11 @@ public class DanmakuManager {
     }
 
     private Map<Integer, Bullet> getWorldMap(World world) {
-        return worldBullets.computeIfAbsent(world, w -> new ConcurrentHashMap<>());
+        return worldBullets.computeIfAbsent(world, w -> new HashMap<>());
     }
 
     private Map<Integer, Laser> getLaserWorldMap(World world) {
-        return worldLasers.computeIfAbsent(world, w -> new ConcurrentHashMap<>());
+        return worldLasers.computeIfAbsent(world, w -> new HashMap<>());
     }
 
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
@@ -259,12 +259,7 @@ public class DanmakuManager {
             }
 
             List<Bullet> bullets = new ArrayList<>(map.values());
-            List<EntityLivingBase> fallbackEntities = new ArrayList<>();
-            for (Entity entity : world.loadedEntityList) {
-                if (!entity.isDead && entity instanceof EntityLivingBase) {
-                    fallbackEntities.add((EntityLivingBase) entity);
-                }
-            }
+            List<EntityLivingBase> fallbackEntities = null;
 
             for (Bullet bullet : bullets) {
                 ICollisionShape shape = bullet.getCollisionShape();
@@ -286,6 +281,9 @@ public class DanmakuManager {
                         }
                     }
                 } else {
+                    if (fallbackEntities == null && shape.getBroadphaseRadius() <= 0.0D) {
+                        fallbackEntities = buildFallbackEntities(world);
+                    }
                     List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
                     for (EntityLivingBase entity : candidates) {
                         if (entity.isDead) continue;
@@ -308,7 +306,7 @@ public class DanmakuManager {
                                                           List<EntityLivingBase> fallbackEntities) {
         double radius = shape.getBroadphaseRadius();
         if (radius <= 0.0D) {
-            return fallbackEntities;
+            return fallbackEntities == null ? buildFallbackEntities(world) : fallbackEntities;
         }
 
         double x = bullet.getPosX();
@@ -316,6 +314,16 @@ public class DanmakuManager {
         double z = bullet.getPosZ();
         AxisAlignedBB searchBox = new AxisAlignedBB(x, y, z, x, y, z).grow(radius + 4.0D);
         return world.getEntitiesWithinAABB(EntityLivingBase.class, searchBox);
+    }
+
+    private List<EntityLivingBase> buildFallbackEntities(World world) {
+        List<EntityLivingBase> fallbackEntities = new ArrayList<>();
+        for (Entity entity : world.loadedEntityList) {
+            if (!entity.isDead && entity instanceof EntityLivingBase) {
+                fallbackEntities.add((EntityLivingBase) entity);
+            }
+        }
+        return fallbackEntities;
     }
 
     private void handleCollision(Bullet bullet, World world, Entity entity) {

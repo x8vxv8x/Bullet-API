@@ -12,8 +12,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @InternalApi
 public class Laser implements ILaserActor {
@@ -41,7 +41,7 @@ public class Laser implements ILaserActor {
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
     private final AttackSourceInfo attackSourceInfo;
-    private final Map<Integer, Long> lastHitTick = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> lastHitTick = new HashMap<>();
     public Laser(int id, Vec3d start, Vec3d direction, double maxLength, float thickness,
                  float damage, int life, boolean penetrate,
                  boolean followShooter, boolean onlyPlayer, boolean blockStops,

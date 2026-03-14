@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 @InternalApi
 public class SummonSlotManager {
@@ -19,7 +19,7 @@ public class SummonSlotManager {
     private static final String MAX_SLOTS_KEY = "max_slots";
     private static final int DEFAULT_MAX_SLOTS = 3;
 
-    private static final Map<UUID, Integer> USED_SLOTS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> USED_SLOTS = new HashMap<>();
 
     public int getMaxSlots(EntityPlayer player) {
         NBTTagCompound root = getRootTag(player);

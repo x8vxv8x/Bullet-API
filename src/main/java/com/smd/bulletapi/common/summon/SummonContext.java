@@ -46,6 +46,6 @@ public class SummonContext {
     }
 
     public int getOwnedSummonCount() {
-        return Math.max(1, manager.getOwnedSummons(owner.getUniqueID()).size());
+        return Math.max(1, manager.getOwnedSummonCount(owner.getUniqueID()));
     }
 }

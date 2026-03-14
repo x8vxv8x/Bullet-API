@@ -12,9 +12,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-import java.util.UUID;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 @InternalApi
 public class SummonBullet extends Bullet implements ISummonActor {
@@ -29,9 +29,12 @@ public class SummonBullet extends Bullet implements ISummonActor {
     private int syncCooldown;
     private final int formationIndex;
     private final long spawnTick;
-    private final Map<Integer, Long> lastContactHitTick = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> lastContactHitTick = new HashMap<>();
     private int activeLaserId = -1;
     private boolean releasedSlots;
+    private Vec3d lastSyncedPosition;
+    private Vec3d lastSyncedVelocity;
+    private long lastSyncWorldTick;
 
     public SummonBullet(int id, Vec3d position, Vec3d velocity, SummonDefinition definition,
                         EntityLivingBase owner, int formationIndex, long spawnTick) {
@@ -47,6 +50,9 @@ public class SummonBullet extends Bullet implements ISummonActor {
         this.definition = definition;
         this.formationIndex = formationIndex;
         this.spawnTick = spawnTick;
+        this.lastSyncedPosition = position;
+        this.lastSyncedVelocity = velocity;
+        this.lastSyncWorldTick = spawnTick;
     }
 
     public UUID getOwnerId() { return ownerId; }
@@ -113,6 +119,24 @@ public class SummonBullet extends Bullet implements ISummonActor {
         if (retargetCooldown > 0) retargetCooldown--;
         if (attackCooldown > 0) attackCooldown--;
         if (syncCooldown > 0) syncCooldown--;
+    }
+
+    public Vec3d getLastSyncedPosition() {
+        return lastSyncedPosition;
+    }
+
+    public Vec3d getLastSyncedVelocity() {
+        return lastSyncedVelocity;
+    }
+
+    public long getLastSyncWorldTick() {
+        return lastSyncWorldTick;
+    }
+
+    public void markSynced(long worldTick) {
+        this.lastSyncedPosition = getPosition();
+        this.lastSyncedVelocity = getVelocity();
+        this.lastSyncWorldTick = worldTick;
     }
 
     public boolean canTriggerContact(EntityLivingBase entity, long worldTick) {

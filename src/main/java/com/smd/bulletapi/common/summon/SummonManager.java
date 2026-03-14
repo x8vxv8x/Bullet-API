@@ -31,19 +31,23 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @InternalApi
 public class SummonManager {
     private static final SummonManager INSTANCE = new SummonManager();
+    private static final double SNAPSHOT_POS_EPS_SQ = 0.05D * 0.05D;
+    private static final double SNAPSHOT_VEL_EPS_SQ = 0.02D * 0.02D;
 
-    private final Map<World, Map<Integer, SummonBullet>> worldSummons = new ConcurrentHashMap<>();
+    private final Map<World, Map<Integer, SummonBullet>> worldSummons = new HashMap<>();
+    private final Map<UUID, LinkedHashSet<OwnedSummonRef>> ownerSummons = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1000000);
     private final SummonSlotManager slotManager = new SummonSlotManager();
 
@@ -74,10 +78,11 @@ public class SummonManager {
         }
 
         int id = nextId.getAndIncrement();
-        int formationIndex = getOwnedSummons(owner.getUniqueID()).size();
+        int formationIndex = getOwnedSummonCount(owner.getUniqueID());
         Vec3d spawnPos = owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + definition.getIdleHeight(), 0);
         SummonBullet summon = new SummonBullet(id, spawnPos, new Vec3d(0, 0, 0), definition, owner, formationIndex, world.getTotalWorldTime());
         getWorldMap(world).put(id, summon);
+        indexSummon(world, summon);
         MinecraftForge.EVENT_BUS.post(new SummonSpawnEvent(world, createSummonSnapshot(summon)));
         sendSpawn(world, summon);
         return id;
@@ -92,6 +97,7 @@ public class SummonManager {
         if (map == null) return;
         SummonBullet summon = map.remove(id);
         if (summon == null) return;
+        deindexSummon(world, summon);
         cleanupSummonActors(world, summon);
         releaseSlots(summon, world);
         MinecraftForge.EVENT_BUS.post(new SummonRemoveEvent(world, createSummonSnapshot(summon), reason));
@@ -119,15 +125,22 @@ public class SummonManager {
 
     public List<SummonBullet> getOwnedSummons(UUID ownerId) {
         if (ownerId == null) return Collections.emptyList();
-        List<SummonBullet> summons = new ArrayList<>();
-        for (Map<Integer, SummonBullet> worldMap : worldSummons.values()) {
-            for (SummonBullet summon : worldMap.values()) {
-                if (ownerId.equals(summon.getOwnerId()) && !summon.isDead()) {
-                    summons.add(summon);
-                }
-            }
+        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<SummonBullet> summons = new ArrayList<>(refs.size());
+        for (OwnedSummonRef ref : refs) {
+            summons.add(ref.summon);
         }
         return summons;
+    }
+
+    public int getOwnedSummonCount(UUID ownerId) {
+        if (ownerId == null) return 0;
+        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
+        return refs == null ? 0 : refs.size();
     }
 
     @SubscribeEvent
@@ -192,7 +205,10 @@ public class SummonManager {
             emitStateChanges(event.world, summon, previousState, previousTargetId);
 
             if (summon.shouldSync()) {
-                sendSnapshot(event.world, summon);
+                if (shouldSendSnapshot(summon, worldTick)) {
+                    sendSnapshot(event.world, summon);
+                    summon.markSynced(worldTick);
+                }
                 summon.resetSyncCooldown();
             }
         }
@@ -213,6 +229,7 @@ public class SummonManager {
         Map<Integer, SummonBullet> removed = worldSummons.remove(event.getWorld());
         if (removed == null) return;
         for (SummonBullet summon : removed.values()) {
+            deindexSummon(event.getWorld(), summon);
             cleanupSummonActors(event.getWorld(), summon);
             releaseSlots(summon, event.getWorld());
             MinecraftForge.EVENT_BUS.post(new SummonRemoveEvent(event.getWorld(), createSummonSnapshot(summon), LifecycleRemoveReason.WORLD_UNLOAD));
@@ -220,7 +237,7 @@ public class SummonManager {
     }
 
     private Map<Integer, SummonBullet> getWorldMap(World world) {
-        return worldSummons.computeIfAbsent(world, ignored -> new ConcurrentHashMap<>());
+        return worldSummons.computeIfAbsent(world, ignored -> new HashMap<>());
     }
 
     private void sendSpawn(World world, SummonBullet summon) {
@@ -293,16 +310,12 @@ public class SummonManager {
 
     private void removeOwnedSummons(UUID ownerId, LifecycleRemoveReason reason) {
         if (ownerId == null) return;
-        for (Map.Entry<World, Map<Integer, SummonBullet>> entry : worldSummons.entrySet()) {
-            List<Integer> removeIds = new ArrayList<>();
-            for (SummonBullet summon : entry.getValue().values()) {
-                if (ownerId.equals(summon.getOwnerId())) {
-                    removeIds.add(summon.getId());
-                }
-            }
-            for (Integer id : removeIds) {
-                removeSummon(entry.getKey(), id, reason);
-            }
+        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(ownerId);
+        if (refs == null || refs.isEmpty()) return;
+
+        List<OwnedSummonRef> removeRefs = new ArrayList<>(refs);
+        for (OwnedSummonRef ref : removeRefs) {
+            removeSummon(ref.world, ref.summonId, reason);
         }
     }
 
@@ -331,15 +344,36 @@ public class SummonManager {
     }
 
     private List<OwnedSummonRef> collectOwnedSummons(UUID ownerId) {
-        List<OwnedSummonRef> owned = new ArrayList<>();
-        for (Map.Entry<World, Map<Integer, SummonBullet>> entry : worldSummons.entrySet()) {
-            for (SummonBullet summon : entry.getValue().values()) {
-                if (ownerId.equals(summon.getOwnerId()) && !summon.isDead()) {
-                    owned.add(new OwnedSummonRef(entry.getKey(), summon));
-                }
+        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(refs);
+    }
+
+    private LinkedHashSet<OwnedSummonRef> getLiveOwnerRefs(UUID ownerId) {
+        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            return refs;
+        }
+
+        List<OwnedSummonRef> staleRefs = null;
+        for (OwnedSummonRef ref : refs) {
+            Map<Integer, SummonBullet> worldMap = worldSummons.get(ref.world);
+            SummonBullet summon = worldMap == null ? null : worldMap.get(ref.summonId);
+            if (summon == null || summon.isDead()) {
+                if (staleRefs == null) staleRefs = new ArrayList<>();
+                staleRefs.add(ref);
             }
         }
-        return owned;
+
+        if (staleRefs != null) {
+            refs.removeAll(staleRefs);
+            if (refs.isEmpty()) {
+                ownerSummons.remove(ownerId);
+            }
+        }
+        return refs;
     }
 
     private void handleSummonBodyCollision(SummonBullet summon, World world, long worldTick) {
@@ -414,13 +448,61 @@ public class SummonManager {
         );
     }
 
+    private boolean shouldSendSnapshot(SummonBullet summon, long worldTick) {
+        Vec3d lastPos = summon.getLastSyncedPosition();
+        Vec3d lastVel = summon.getLastSyncedVelocity();
+        Vec3d pos = summon.getPosition();
+        Vec3d vel = summon.getVelocity();
+
+        if (lastPos == null || lastVel == null) return true;
+        if (pos.squareDistanceTo(lastPos) >= SNAPSHOT_POS_EPS_SQ) return true;
+        if (vel.squareDistanceTo(lastVel) >= SNAPSHOT_VEL_EPS_SQ) return true;
+
+        int maxSilentTicks = Math.max(10, summon.getDefinition().getSyncIntervalTicks() * 5);
+        return worldTick - summon.getLastSyncWorldTick() >= maxSilentTicks;
+    }
+
+    private void indexSummon(World world, SummonBullet summon) {
+        if (world == null || summon == null) return;
+        ownerSummons
+                .computeIfAbsent(summon.getOwnerId(), ignored -> new LinkedHashSet<>())
+                .add(new OwnedSummonRef(world, summon));
+    }
+
+    private void deindexSummon(World world, SummonBullet summon) {
+        if (world == null || summon == null) return;
+        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(summon.getOwnerId());
+        if (refs == null) return;
+        refs.remove(new OwnedSummonRef(world, summon));
+        if (refs.isEmpty()) {
+            ownerSummons.remove(summon.getOwnerId());
+        }
+    }
+
     private static class OwnedSummonRef {
         private final World world;
+        private final int summonId;
         private final SummonBullet summon;
 
         private OwnedSummonRef(World world, SummonBullet summon) {
             this.world = world;
+            this.summonId = summon.getId();
             this.summon = summon;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof OwnedSummonRef)) return false;
+            OwnedSummonRef other = (OwnedSummonRef) obj;
+            return this.world == other.world && this.summonId == other.summonId;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = System.identityHashCode(world);
+            result = 31 * result + summonId;
+            return result;
         }
     }
 }

@@ -11,15 +11,15 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @SideOnly(Side.CLIENT)
 @InternalApi
 public class ClientLaserCache {
     public static ClientLaserCache INSTANCE;
 
-    private final Map<Integer, ClientLaser> lasers = new ConcurrentHashMap<>();
+    private final Map<Integer, ClientLaser> lasers = new HashMap<>();
 
     public ClientLaserCache() {
         MinecraftForge.EVENT_BUS.register(this);

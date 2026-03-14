@@ -13,15 +13,15 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @SideOnly(Side.CLIENT)
 @InternalApi
 public class ClientDanmakuCache {
     public static ClientDanmakuCache INSTANCE;
 
-    private final Map<Integer, ClientBullet> bullets = new ConcurrentHashMap<>();
+    private final Map<Integer, ClientBullet> bullets = new HashMap<>();
 
     public ClientDanmakuCache() {
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this);

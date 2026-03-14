@@ -10,10 +10,10 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 public class RamStrikeMoveController implements ISummonMoveController {
-    private static final Map<Integer, RamState> STATES = new ConcurrentHashMap<>();
+    private static final Map<Integer, RamState> STATES = new HashMap<>();
 
     private final double dashSpeed;
     private final int dashTicks;
