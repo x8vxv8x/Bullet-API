@@ -1,4 +1,4 @@
-package com.smd.bulletapi.event;
+package com.smd.bulletapi.debug;
 
 import com.smd.bulletapi.api.BattlefieldQueryApi;
 import com.smd.bulletapi.api.BulletApi;
@@ -11,6 +11,7 @@ import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
+import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;

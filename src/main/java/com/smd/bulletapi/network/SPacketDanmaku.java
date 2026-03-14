@@ -1,7 +1,6 @@
 package com.smd.bulletapi.network;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
-import com.smd.bulletapi.client.ClientBullet;
 import com.smd.bulletapi.client.ClientDanmakuCache;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
@@ -120,40 +119,37 @@ public class SPacketDanmaku implements IMessage {
         @Override
         @SideOnly(Side.CLIENT)
         public IMessage onMessage(SPacketDanmaku message, MessageContext ctx) {
-            if (ctx.side == Side.CLIENT) {
-                net.minecraftforge.fml.common.FMLCommonHandler.instance()
-                        .getWorldThread(ctx.netHandler).addScheduledTask(() -> {
-                            ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
-                            if (cache == null) return;
-                            switch (message.op) {
-                                case SPAWN:
-                                    ResourceLocation tex = null;
-                                    if (message.texture != null && !message.texture.isEmpty()) {
-                                        tex = new ResourceLocation(message.texture);
-                                    }
-                                    cache.spawnBullet(
-                                            message.id,
-                                            new Vec3d(message.x, message.y, message.z),
-                                            new Vec3d(message.vx, message.vy, message.vz),
-                                            message.life,
-                                            message.damage,
-                                            tex,
-                                            message.color,
-                                            message.size,
-                                            message.rendererType,
-                                            message.customData
-                                    );
-                                    break;
-                                case UPDATE:
-                                    cache.updateBulletVelocity(message.id,
-                                            new Vec3d(message.nvx, message.nvy, message.nvz));
-                                    break;
-                                case REMOVE:
-                                    cache.removeBullet(message.id);
-                                    break;
-                            }
-                        });
-            }
+            PacketHandler.runOnClientThread(ctx, () -> {
+                ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
+                if (cache == null) return;
+                switch (message.op) {
+                    case SPAWN:
+                        ResourceLocation tex = null;
+                        if (message.texture != null && !message.texture.isEmpty()) {
+                            tex = new ResourceLocation(message.texture);
+                        }
+                        cache.spawnBullet(
+                                message.id,
+                                new Vec3d(message.x, message.y, message.z),
+                                new Vec3d(message.vx, message.vy, message.vz),
+                                message.life,
+                                message.damage,
+                                tex,
+                                message.color,
+                                message.size,
+                                message.rendererType,
+                                message.customData
+                        );
+                        break;
+                    case UPDATE:
+                        cache.updateBulletVelocity(message.id,
+                                new Vec3d(message.nvx, message.nvy, message.nvz));
+                        break;
+                    case REMOVE:
+                        cache.removeBullet(message.id);
+                        break;
+                }
+            });
             return null;
         }
     }

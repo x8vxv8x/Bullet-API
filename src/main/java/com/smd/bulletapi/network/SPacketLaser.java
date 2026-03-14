@@ -120,40 +120,37 @@ public class SPacketLaser implements IMessage {
         @Override
         @SideOnly(Side.CLIENT)
         public IMessage onMessage(SPacketLaser message, MessageContext ctx) {
-            if (ctx.side == Side.CLIENT) {
-                net.minecraftforge.fml.common.FMLCommonHandler.instance()
-                        .getWorldThread(ctx.netHandler).addScheduledTask(() -> {
-                            ClientLaserCache cache = ClientLaserCache.INSTANCE;
-                            if (cache == null) return;
-                            switch (message.op) {
-                                case SPAWN:
-                                    cache.spawnLaser(
-                                            message.id,
-                                            message.tick,
-                                            new Vec3d(message.sx, message.sy, message.sz),
-                                            new Vec3d(message.dx, message.dy, message.dz),
-                                            message.length,
-                                            message.thickness,
-                                            message.color,
-                                            message.rendererType,
-                                            message.customData
-                                    );
-                                    break;
-                                case UPDATE:
-                                    cache.updateLaser(
-                                            message.id,
-                                            message.tick,
-                                            new Vec3d(message.sx, message.sy, message.sz),
-                                            new Vec3d(message.dx, message.dy, message.dz),
-                                            message.length
-                                    );
-                                    break;
-                                case REMOVE:
-                                    cache.removeLaser(message.id);
-                                    break;
-                            }
-                        });
-            }
+            PacketHandler.runOnClientThread(ctx, () -> {
+                ClientLaserCache cache = ClientLaserCache.INSTANCE;
+                if (cache == null) return;
+                switch (message.op) {
+                    case SPAWN:
+                        cache.spawnLaser(
+                                message.id,
+                                message.tick,
+                                new Vec3d(message.sx, message.sy, message.sz),
+                                new Vec3d(message.dx, message.dy, message.dz),
+                                message.length,
+                                message.thickness,
+                                message.color,
+                                message.rendererType,
+                                message.customData
+                        );
+                        break;
+                    case UPDATE:
+                        cache.updateLaser(
+                                message.id,
+                                message.tick,
+                                new Vec3d(message.sx, message.sy, message.sz),
+                                new Vec3d(message.dx, message.dy, message.dz),
+                                message.length
+                        );
+                        break;
+                    case REMOVE:
+                        cache.removeLaser(message.id);
+                        break;
+                }
+            });
             return null;
         }
     }

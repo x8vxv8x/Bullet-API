@@ -18,7 +18,6 @@ import com.smd.bulletapi.server.summon.SummonBullet;
 import com.smd.bulletapi.common.summon.behavior.ISummonCommandHandler;
 import com.smd.bulletapi.spi.combat.CombatRelation;
 import com.smd.bulletapi.spi.combat.CombatRelationResolverRegistry;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
@@ -120,7 +119,7 @@ public class SummonManager {
         if (world == null || commandId == null || commandId.trim().isEmpty()) return false;
         SummonBullet summon = getLiveSummon(world, id);
         if (summon == null) return false;
-        if (isStandardCommand(commandId)) return true;
+        if (SummonCommandProcessor.isStandardCommand(commandId)) return true;
         ISummonCommandHandler handler = summon.getDefinition().getCommandHandler();
         return handler != null && handler.supportsCommand(commandId);
     }
@@ -534,7 +533,7 @@ public class SummonManager {
         }
 
         for (SummonCommand command : commands) {
-            if (!applyStandardCommand(world, summon, context, command)) {
+            if (!SummonCommandProcessor.applyStandardCommand(this, world, summon, context, command)) {
                 return false;
             }
         }
@@ -545,7 +544,7 @@ public class SummonManager {
         }
 
         for (SummonCommand command : commands) {
-            if (isStandardCommand(command.getCommandId())) continue;
+            if (SummonCommandProcessor.isStandardCommand(command.getCommandId())) continue;
             if (!handler.supportsCommand(command.getCommandId())) continue;
             handler.handleCommand(context, command);
             if (summon.isDead() || getLiveSummon(world, summon.getId()) != summon) {
@@ -553,50 +552,6 @@ public class SummonManager {
             }
         }
         return true;
-    }
-
-    private boolean applyStandardCommand(World world, SummonBullet summon, SummonContext context, SummonCommand command) {
-        String commandId = command.getCommandId();
-        if (SummonCommand.CLEAR_TARGET.equals(commandId)) {
-            context.setTarget(null);
-            summon.resetRetargetCooldown();
-            return true;
-        }
-        if (SummonCommand.FORCE_RETARGET.equals(commandId)) {
-            if (summon.getDefinition().getTargetSelector() != null) {
-                context.setTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
-            } else {
-                context.setTarget(null);
-            }
-            summon.resetRetargetCooldown();
-            return true;
-        }
-        if (SummonCommand.FORCE_TARGET.equals(commandId)) {
-            int targetEntityId = command.getInt(SummonCommand.KEY_TARGET_ENTITY_ID, -1);
-            Entity entity = targetEntityId < 0 ? null : world.getEntityByID(targetEntityId);
-            context.setTarget(entity instanceof EntityLivingBase && !entity.isDead ? (EntityLivingBase) entity : null);
-            summon.resetRetargetCooldown();
-            return true;
-        }
-        if (SummonCommand.RETURN_TO_OWNER.equals(commandId)) {
-            context.setTarget(null);
-            summon.resetRetargetCooldown();
-            summon.setState(SummonState.RETURNING);
-            return true;
-        }
-        if (SummonCommand.DESPAWN.equals(commandId)) {
-            removeSummon(world, summon.getId(), LifecycleRemoveReason.API_REQUEST);
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isStandardCommand(String commandId) {
-        return SummonCommand.CLEAR_TARGET.equals(commandId)
-                || SummonCommand.FORCE_RETARGET.equals(commandId)
-                || SummonCommand.FORCE_TARGET.equals(commandId)
-                || SummonCommand.RETURN_TO_OWNER.equals(commandId)
-                || SummonCommand.DESPAWN.equals(commandId);
     }
 
     private void indexSummon(World world, SummonBullet summon) {

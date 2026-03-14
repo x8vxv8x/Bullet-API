@@ -1,9 +1,6 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
-import com.smd.bulletapi.client.render.LaserBeamRenderer;
-import com.smd.bulletapi.client.render.LaserRendererRegistry;
-import com.smd.bulletapi.client.render.ILaserRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
@@ -33,13 +30,7 @@ public class ClientLaserCache {
                            float thickness, int color, String rendererType,
                            NBTTagCompound customData) {
         ClientLaser laser = new ClientLaser(id, tick, start, direction, length, thickness, color, rendererType, customData);
-
-        if (rendererType != null && LaserRendererRegistry.hasType(rendererType)) {
-            laser.setRenderer(LaserRendererRegistry.create(rendererType, customData));
-        } else {
-            laser.setRenderer(LaserBeamRenderer.INSTANCE);
-        }
-
+        laser.setRenderer(ClientRendererResolvers.createLaserRenderer(rendererType, customData));
         lasers.put(id, laser);
     }
 
@@ -52,17 +43,14 @@ public class ClientLaserCache {
 
     public void removeLaser(int id) {
         ClientLaser laser = lasers.remove(id);
-        if (laser != null && laser.getRenderer() != null) {
-            laser.getRenderer().deleteGlResources();
+        if (laser != null) {
+            ClientRendererResolvers.deleteLaserRenderer(laser.getRenderer());
         }
     }
 
     public void clear() {
         for (ClientLaser laser : lasers.values()) {
-            ILaserRenderer renderer = laser.getRenderer();
-            if (renderer != null) {
-                renderer.deleteGlResources();
-            }
+            ClientRendererResolvers.deleteLaserRenderer(laser.getRenderer());
         }
         lasers.clear();
     }

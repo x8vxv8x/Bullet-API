@@ -146,44 +146,41 @@ public class SPacketSummon implements IMessage {
         @Override
         @SideOnly(Side.CLIENT)
         public IMessage onMessage(SPacketSummon message, MessageContext ctx) {
-            if (ctx.side == Side.CLIENT) {
-                net.minecraftforge.fml.common.FMLCommonHandler.instance()
-                        .getWorldThread(ctx.netHandler).addScheduledTask(() -> {
-                            ClientSummonCache cache = ClientSummonCache.INSTANCE;
-                            if (cache == null) return;
-                            switch (message.op) {
-                                case SPAWN:
-                                    ResourceLocation textureLocation = null;
-                                    if (message.texture != null && !message.texture.isEmpty()) {
-                                        textureLocation = new ResourceLocation(message.texture);
-                                    }
-                                    cache.spawnSummon(
-                                            message.id,
-                                            new Vec3d(message.x, message.y, message.z),
-                                            new Vec3d(message.vx, message.vy, message.vz),
-                                            message.life,
-                                            message.damage,
-                                            textureLocation,
-                                            message.color,
-                                            message.size,
-                                            message.rendererType,
-                                            message.customData
-                                    );
-                                    break;
-                                case SNAPSHOT:
-                                    cache.updateSummon(
-                                            message.id,
-                                            new Vec3d(message.x, message.y, message.z),
-                                            new Vec3d(message.vx, message.vy, message.vz),
-                                            message.life
-                                    );
-                                    break;
-                                case REMOVE:
-                                    cache.removeSummon(message.id);
-                                    break;
-                            }
-                        });
-            }
+            PacketHandler.runOnClientThread(ctx, () -> {
+                ClientSummonCache cache = ClientSummonCache.INSTANCE;
+                if (cache == null) return;
+                switch (message.op) {
+                    case SPAWN:
+                        ResourceLocation textureLocation = null;
+                        if (message.texture != null && !message.texture.isEmpty()) {
+                            textureLocation = new ResourceLocation(message.texture);
+                        }
+                        cache.spawnSummon(
+                                message.id,
+                                new Vec3d(message.x, message.y, message.z),
+                                new Vec3d(message.vx, message.vy, message.vz),
+                                message.life,
+                                message.damage,
+                                textureLocation,
+                                message.color,
+                                message.size,
+                                message.rendererType,
+                                message.customData
+                        );
+                        break;
+                    case SNAPSHOT:
+                        cache.updateSummon(
+                                message.id,
+                                new Vec3d(message.x, message.y, message.z),
+                                new Vec3d(message.vx, message.vy, message.vz),
+                                message.life
+                        );
+                        break;
+                    case REMOVE:
+                        cache.removeSummon(message.id);
+                        break;
+                }
+            });
             return null;
         }
     }
