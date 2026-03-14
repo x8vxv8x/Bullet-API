@@ -2,11 +2,13 @@ package com.smd.bulletapi.event;
 
 import com.smd.bulletapi.BulletAPI;
 import com.smd.bulletapi.common.CollisionContext;
-import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
+import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
+import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
+import com.smd.bulletapi.server.summon.SummonBullet;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -31,7 +33,8 @@ public class TestEvent {
         EntityLivingBase victim = event.getEntityLiving();
 
         if (player.isSneaking() && player.isInWater()) {
-            spawnLaserEyeTest(player);
+            //spawnLaserEyeTest(player);
+            spawnRamWispTest(player);
         } else if (player.isSprinting()) {
             spawnFairyOrbTest(player);
         } else if (player.isInWater()) {
@@ -41,6 +44,29 @@ public class TestEvent {
         } else {
             spawnDefaultBillboardTest(player, victim);
         }
+    }
+
+    @SubscribeEvent
+    public static void onSummonBodyCollision(BulletCollisionEvent event) {
+        if (event.getWorld().isRemote) return;
+        if (!(event.getHitEntity() instanceof EntityLivingBase)) return;
+
+        CollisionContext ctx = event.getContext();
+        if (!ctx.isSummonBody()) return;
+        if (!(event.getBullet() instanceof SummonBullet)) return;
+
+        SummonBullet summon = (SummonBullet) event.getBullet();
+        if (!SummonPresetKeys.RAM_WISP.equals(summon.getDefinitionId())) return;
+
+        EntityLivingBase hit = (EntityLivingBase) event.getHitEntity();
+        RamStrikeMoveController.notifyBodyCollision(summon, hit, event.getWorld().getTotalWorldTime());
+
+        ctx.damage = Math.max(ctx.damage, summon.getDamage()) * 1.25f;
+        event.getWorld().playSound(null, hit.posX, hit.posY, hit.posZ,
+                SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.45F, 1.35F);
+        event.getWorld().spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                hit.posX, hit.posY + hit.height * 0.5D, hit.posZ,
+                0.0D, 0.02D, 0.0D);
     }
 
     private static void spawnDefaultBillboardTest(EntityPlayer player, EntityLivingBase victim) {
@@ -331,6 +357,35 @@ public class TestEvent {
 
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r laser_eye 已召唤，id=%d，占用 2 槽，当前槽位 %d/%d，召唤物总数: §e%d",
+                        id,
+                        BulletAPI.getPlayerUsedSummonSlots(player),
+                        BulletAPI.getPlayerMaxSummonSlots(player),
+                        BulletAPI.getSummonCount(player.world))
+        ));
+    }
+
+    private static void spawnRamWispTest(EntityPlayer player) {
+        if (player.world.isRemote) return;
+        if (BulletAPI.getPlayerMaxSummonSlots(player) < 8) {
+            BulletAPI.setPlayerMaxSummonSlots(player, 8);
+        }
+
+        int id = BulletAPI.summon(player.world)
+                .owner(player)
+                .definition(SummonPresetKeys.RAM_WISP)
+                .spawn();
+
+        if (id < 0) {
+            player.sendMessage(new TextComponentString(
+                    String.format("§c[BulletAPI]§r ram_wisp 召唤失败，槽位不足：%d/%d",
+                            BulletAPI.getPlayerUsedSummonSlots(player),
+                            BulletAPI.getPlayerMaxSummonSlots(player))
+            ));
+            return;
+        }
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r ram_wisp 已召唤，id=%d，触发方式：冲刺且在水中，当前槽位 %d/%d，召唤物总数: §e%d",
                         id,
                         BulletAPI.getPlayerUsedSummonSlots(player),
                         BulletAPI.getPlayerMaxSummonSlots(player),

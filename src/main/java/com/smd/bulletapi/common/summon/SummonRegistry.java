@@ -3,6 +3,7 @@ package com.smd.bulletapi.common.summon;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.behavior.impl.NearestHostileSelector;
 import com.smd.bulletapi.common.summon.behavior.impl.OrbitOwnerMoveController;
+import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
 import com.smd.bulletapi.common.summon.behavior.impl.RingFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootBulletPattern;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootLaserPattern;
@@ -129,5 +130,33 @@ public final class SummonRegistry {
                 .set("scale", 0.42f)
                 .set("rot_mode", "face_camera")
                 .set("tint", 0xA8F2FF));
+
+        NBTTagCompound ramWispData = new NBTTagCompound();
+        ramWispData.setFloat("scale", 0.72f);
+
+        register(new SummonDefinition(SummonPresetKeys.RAM_WISP)
+                .life(6000)
+                .damage(3.5f)
+                .slotCost(1)
+                .texture("bulletapi:textures/entity/bullet.png")
+                .color(0xFFD67A)
+                .size(0.62f)
+                .rendererType("billboard")
+                .customData(ramWispData)
+                .followRange(30.0)
+                .attackRange(18.0)
+                .leashRange(34.0)
+                .moveSpeed(0.36)
+                .acceleration(0.22)
+                .idleHeight(1.05)
+                .idleRadius(1.45)
+                .retargetIntervalTicks(4)
+                .syncIntervalTicks(1)
+                .bodyCollisionIntervalTicks(2)
+                .collisionShape(new SphereShape(0.28))
+                .targetSelector(new NearestHostileSelector())
+                .formationStrategy(new RingFormationStrategy())
+                .moveController(new RamStrikeMoveController())
+                .attackPattern(null));
     }
 }
