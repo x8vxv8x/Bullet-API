@@ -1,5 +1,6 @@
 package com.smd.bulletapi.server;
 
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.LaserCollisionContext;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
@@ -34,6 +35,7 @@ public class Laser {
     private final Consumer<LaserCollisionContext> onCollision;
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
+    private final AttackSourceInfo attackSourceInfo;
     private final Map<Integer, Long> lastHitTick = new ConcurrentHashMap<>();
     public Laser(int id, Vec3d start, Vec3d direction, double maxLength, float thickness,
                  float damage, int life, boolean penetrate,
@@ -43,7 +45,8 @@ public class Laser {
                  int eventIntervalTicks,
                  int color, String rendererType, NBTTagCompound customData,
                  Consumer<LaserCollisionContext> onCollision,
-                 EntityLivingBase shooter, ItemStack shooterHeldItem) {
+                 EntityLivingBase shooter, ItemStack shooterHeldItem,
+                 AttackSourceInfo attackSourceInfo) {
         this.id = id;
         this.start = start;
         this.direction = direction == null ? new Vec3d(0, 0, 0) : direction.normalize();
@@ -65,6 +68,8 @@ public class Laser {
         this.onCollision = onCollision;
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
+        this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.fromTag(this.customData) : attackSourceInfo;
+        this.attackSourceInfo.writeToTag(this.customData);
     }
 
     public void update(World world) {
@@ -107,7 +112,17 @@ public class Laser {
 
     public int getId() { return id; }
     public Vec3d getStart() { return start; }
+    public void setStart(Vec3d start) {
+        this.start = start == null ? new Vec3d(0, 0, 0) : start;
+    }
     public Vec3d getDirection() { return direction; }
+    public void setDirection(Vec3d direction) {
+        if (direction == null || direction.lengthSquared() < 1.0E-6) {
+            this.direction = new Vec3d(0, 0, 1);
+            return;
+        }
+        this.direction = direction.normalize();
+    }
     public double getMaxLength() { return maxLength; }
     public double getCurrentLength() { return currentLength; }
     public void setCurrentLength(double length) { this.currentLength = length; }
@@ -126,6 +141,8 @@ public class Laser {
     public NBTTagCompound getCustomData() { return customData; }
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+    public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
+    public void markDead() { this.dead = true; }
 
     private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {
         if (local == null) return new Vec3d(0, 0, 0);

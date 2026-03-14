@@ -30,9 +30,11 @@ public class TestEvent {
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
         EntityLivingBase victim = event.getEntityLiving();
 
-        if (player.isInWater()) {
+        if (player.isSneaking() && player.isInWater()) {
+            spawnLaserEyeTest(player);
+        } else if (player.isSprinting()) {
             spawnFairyOrbTest(player);
-        } else if (player.isSneaking() && player.isInWater()) {
+        } else if (player.isInWater()) {
             spawnLaserPolyTest(player);
         } else if (player.isSneaking()) {
             spawnModelTestBullets(player, victim);
@@ -300,6 +302,35 @@ public class TestEvent {
 
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r fairy_orb 已召唤，id=%d，槽位 %d/%d，当前召唤物总数: §e%d",
+                        id,
+                        BulletAPI.getPlayerUsedSummonSlots(player),
+                        BulletAPI.getPlayerMaxSummonSlots(player),
+                        BulletAPI.getSummonCount(player.world))
+        ));
+    }
+
+    private static void spawnLaserEyeTest(EntityPlayer player) {
+        if (player.world.isRemote) return;
+        if (BulletAPI.getPlayerMaxSummonSlots(player) < 8) {
+            BulletAPI.setPlayerMaxSummonSlots(player, 8);
+        }
+
+        int id = BulletAPI.summon(player.world)
+                .owner(player)
+                .definition(SummonPresetKeys.LASER_EYE)
+                .spawn();
+
+        if (id < 0) {
+            player.sendMessage(new TextComponentString(
+                    String.format("§c[BulletAPI]§r laser_eye 召唤失败，槽位不足：%d/%d",
+                            BulletAPI.getPlayerUsedSummonSlots(player),
+                            BulletAPI.getPlayerMaxSummonSlots(player))
+            ));
+            return;
+        }
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r laser_eye 已召唤，id=%d，占用 2 槽，当前槽位 %d/%d，召唤物总数: §e%d",
                         id,
                         BulletAPI.getPlayerUsedSummonSlots(player),
                         BulletAPI.getPlayerMaxSummonSlots(player),

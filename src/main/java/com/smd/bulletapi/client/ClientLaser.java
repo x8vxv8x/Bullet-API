@@ -8,19 +8,17 @@ public class ClientLaser {
     private final int id;
     private Vec3d start;
     private Vec3d prevStart;
-    private Vec3d targetStart;
     private Vec3d direction;
     private Vec3d prevDirection;
-    private Vec3d targetDirection;
     private double length;
     private double prevLength;
-    private double targetLength;
     private final float thickness;
     private final int color;
     private final String rendererType;
     private final NBTTagCompound customData;
     private ILaserRenderer renderer;
     private boolean initialized;
+    private long lastSnapshotTick;
 
     public ClientLaser(int id, long tick, Vec3d start, Vec3d direction, double length,
                        float thickness, int color, String rendererType,
@@ -28,37 +26,42 @@ public class ClientLaser {
         this.id = id;
         this.start = start;
         this.prevStart = start;
-        this.targetStart = start;
-        this.direction = direction == null ? new Vec3d(0, 0, 1) : direction;
+        this.direction = normalizeOrDefault(direction);
         this.prevDirection = this.direction;
-        this.targetDirection = this.direction;
         this.length = length;
         this.prevLength = length;
-        this.targetLength = length;
         this.thickness = thickness;
         this.color = color;
         this.rendererType = rendererType;
         this.customData = customData == null ? new NBTTagCompound() : customData;
         this.initialized = true;
+        this.lastSnapshotTick = tick;
     }
 
     public void update(long tick, Vec3d start, Vec3d direction, double length) {
+        if (tick < lastSnapshotTick) {
+            return;
+        }
         if (!initialized) {
             this.start = start;
             this.prevStart = start;
-            this.targetStart = start;
-            this.direction = direction == null ? new Vec3d(0, 0, 1) : direction;
+            this.direction = normalizeOrDefault(direction);
             this.prevDirection = this.direction;
-            this.targetDirection = this.direction;
             this.length = length;
             this.prevLength = length;
-            this.targetLength = length;
             this.initialized = true;
+            this.lastSnapshotTick = tick;
             return;
         }
-        this.targetStart = start;
-        this.targetDirection = direction == null ? new Vec3d(0, 0, 1) : direction;
-        this.targetLength = length;
+
+        this.prevStart = this.start;
+        this.prevDirection = this.direction;
+        this.prevLength = this.length;
+
+        this.start = start;
+        this.direction = normalizeOrDefault(direction);
+        this.length = length;
+        this.lastSnapshotTick = tick;
     }
 
     public void tick() {
@@ -66,16 +69,6 @@ public class ClientLaser {
         prevStart = start;
         prevDirection = direction;
         prevLength = length;
-
-        double alpha = 0.35;
-        start = lerp(start, targetStart, alpha);
-        direction = lerp(prevDirection, targetDirection, alpha);
-        if (direction.lengthSquared() < 1.0E-6) {
-            direction = targetDirection;
-        } else {
-            direction = direction.normalize();
-        }
-        length = prevLength + (targetLength - prevLength) * alpha;
     }
 
     public int getId() { return id; }
@@ -109,6 +102,13 @@ public class ClientLaser {
     public NBTTagCompound getCustomData() { return customData; }
     public ILaserRenderer getRenderer() { return renderer; }
     public void setRenderer(ILaserRenderer renderer) { this.renderer = renderer; }
+
+    private static Vec3d normalizeOrDefault(Vec3d direction) {
+        if (direction == null || direction.lengthSquared() < 1.0E-6) {
+            return new Vec3d(0, 0, 1);
+        }
+        return direction.normalize();
+    }
 
     private static Vec3d lerp(Vec3d a, Vec3d b, double t) {
         if (a == null) return b;

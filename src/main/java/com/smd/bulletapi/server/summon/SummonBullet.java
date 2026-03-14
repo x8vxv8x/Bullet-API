@@ -1,5 +1,6 @@
 package com.smd.bulletapi.server.summon;
 
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.server.Bullet;
@@ -10,6 +11,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SummonBullet extends Bullet {
     private final UUID ownerId;
@@ -22,20 +25,25 @@ public class SummonBullet extends Bullet {
     private int attackCooldown;
     private int syncCooldown;
     private final int formationIndex;
+    private final long spawnTick;
+    private final Map<Integer, Long> lastContactHitTick = new ConcurrentHashMap<>();
+    private int activeLaserId = -1;
     private boolean releasedSlots;
 
     public SummonBullet(int id, Vec3d position, Vec3d velocity, SummonDefinition definition,
-                        EntityLivingBase owner, int formationIndex) {
+                        EntityLivingBase owner, int formationIndex, long spawnTick) {
         super(id, position, velocity, definition.getLife(), definition.getDamage(),
                 definition.getTexture(), definition.getColor(), definition.getSize(),
                 definition.getRendererType(),
                 definition.getCustomData() == null ? new NBTTagCompound() : definition.getCustomData().copy(),
-                definition.getCollisionShape(), null, null, false, owner, null);
+                definition.getCollisionShape(), null, null, false, owner, null,
+                AttackSourceInfo.summonBody(owner.getUniqueID(), id, definition.getId()));
         this.ownerId = owner.getUniqueID();
         this.slotCost = definition.getSlotCost();
         this.definitionId = definition.getId();
         this.definition = definition;
         this.formationIndex = formationIndex;
+        this.spawnTick = spawnTick;
     }
 
     public UUID getOwnerId() { return ownerId; }
@@ -45,6 +53,7 @@ public class SummonBullet extends Bullet {
     public SummonState getState() { return state; }
     public void setState(SummonState state) { this.state = state; }
     public int getFormationIndex() { return formationIndex; }
+    public long getSpawnTick() { return spawnTick; }
 
     public EntityLivingBase getOwnerEntity(World world) {
         EntityLivingBase shooter = getShooter();
@@ -99,11 +108,40 @@ public class SummonBullet extends Bullet {
         if (syncCooldown > 0) syncCooldown--;
     }
 
+    public boolean canTriggerContact(EntityLivingBase entity, long worldTick) {
+        int interval = definition.getBodyCollisionIntervalTicks();
+        if (entity == null) return false;
+        if (interval <= 0) return true;
+        Long last = lastContactHitTick.get(entity.getEntityId());
+        return last == null || worldTick - last >= interval;
+    }
+
+    public void markContactTriggered(EntityLivingBase entity, long worldTick) {
+        if (entity == null) return;
+        lastContactHitTick.put(entity.getEntityId(), worldTick);
+    }
+
     public boolean hasReleasedSlots() {
         return releasedSlots;
     }
 
     public void markSlotsReleased() {
         releasedSlots = true;
+    }
+
+    public int getActiveLaserId() {
+        return activeLaserId;
+    }
+
+    public boolean hasActiveLaser() {
+        return activeLaserId >= 0;
+    }
+
+    public void setActiveLaserId(int activeLaserId) {
+        this.activeLaserId = activeLaserId;
+    }
+
+    public void clearActiveLaserId() {
+        this.activeLaserId = -1;
     }
 }

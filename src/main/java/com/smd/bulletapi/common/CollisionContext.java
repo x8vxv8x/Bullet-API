@@ -12,6 +12,7 @@ public class CollisionContext {
     public final Entity hitEntity;
     public final EntityLivingBase shooter;
     public final ItemStack shooterHeldItem;
+    public final AttackSourceInfo attackSource;
     public float damage;        // 可修改
     public boolean canceled;    // 是否取消默认处理
 
@@ -24,5 +25,11 @@ public class CollisionContext {
         this.shooter = bullet.getShooter();
         ItemStack stack = bullet.getShooterHeldItem();
         this.shooterHeldItem = stack == null ? null : stack.copy();
+        this.attackSource = bullet.getAttackSourceInfo();
     }
+
+    public boolean isSummonSource() { return attackSource != null && attackSource.isSummonSource(); }
+    public boolean isSummonBody() { return attackSource != null && attackSource.isSummonBody(); }
+    public boolean isSummonChildBullet() { return attackSource != null && attackSource.isSummonChildBullet(); }
+    public boolean isSummonChildLaser() { return attackSource != null && attackSource.isSummonChildLaser(); }
 }

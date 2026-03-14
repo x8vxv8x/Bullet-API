@@ -1,5 +1,6 @@
 package com.smd.bulletapi.common;
 
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.LaserCollisionEvent;
@@ -54,13 +55,14 @@ public class DanmakuManager {
                            String texture, int color, float size, String rendererType,
                            NBTTagCompound customData, ICollisionShape collisionShape,
                            Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback,
-                           boolean onlyPlayer, EntityLivingBase shooter, ItemStack shooterHeldItem) {
+                           boolean onlyPlayer, EntityLivingBase shooter, ItemStack shooterHeldItem,
+                           AttackSourceInfo attackSourceInfo) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
                 collisionShape, onCollision, tickCallback, onlyPlayer,
-                shooter, shooterHeldItem);
+                shooter, shooterHeldItem, attackSourceInfo);
         getWorldMap(world).put(id, bullet);
         PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(
                 id, position, velocity, life, damage, texture, color, size, rendererType, customData),
@@ -96,7 +98,8 @@ public class DanmakuManager {
                           Vec3d startOffsetLocal,
                           int eventIntervalTicks,
                           Consumer<LaserCollisionContext> onCollision,
-                          EntityLivingBase shooter, ItemStack shooterHeldItem) {
+                          EntityLivingBase shooter, ItemStack shooterHeldItem,
+                          AttackSourceInfo attackSourceInfo) {
         if (world.isRemote) return -1;
         Vec3d offset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
         Vec3d offsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
@@ -120,7 +123,8 @@ public class DanmakuManager {
         Laser laser = new Laser(id, start, direction, maxLength, thickness, damage,
                 life, penetrate, followShooter, onlyPlayer, blockStops, offset, offsetLocal,
                 eventIntervalTicks,
-                color, rendererType, customData, onCollision, shooter, shooterHeldItem);
+                color, rendererType, customData, onCollision, shooter, shooterHeldItem, attackSourceInfo);
+        laser.setCurrentLength(computeLaserLength(laser, world));
         getLaserWorldMap(world).put(id, laser);
         PacketHandler.sendToDimension(SPacketLaser.createSpawn(
                 id, world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength(),
@@ -135,6 +139,33 @@ public class DanmakuManager {
             map.remove(id);
             PacketHandler.sendToDimension(SPacketLaser.createRemove(id), world.provider.getDimension());
         }
+    }
+
+    public boolean hasLaser(World world, int id) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null) return false;
+        Laser laser = map.get(id);
+        return laser != null && !laser.isDead();
+    }
+
+    public boolean updateLaserTransform(World world, int id, Vec3d start, Vec3d direction) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null) return false;
+
+        Laser laser = map.get(id);
+        if (laser == null || laser.isDead()) return false;
+
+        laser.setStart(start);
+        laser.setDirection(direction);
+        laser.setCurrentLength(computeLaserLength(laser, world));
+        PacketHandler.sendToDimension(SPacketLaser.createUpdate(
+                laser.getId(),
+                world.getTotalWorldTime(),
+                laser.getStart(),
+                laser.getDirection(),
+                laser.getCurrentLength()
+        ), world.provider.getDimension());
+        return true;
     }
 
     @SubscribeEvent
@@ -198,6 +229,7 @@ public class DanmakuManager {
                     if (bullet.isOnlyPlayer()) {
                         for (EntityPlayer player : world.playerEntities) {
                             if (player.isDead || player.capabilities.disableDamage) continue;
+                            if (!canBulletCollide(bullet, player)) continue;
                             if (shape.checkCollision(posX, posY, posZ, player)) {
                                 handleCollision(bullet, world, player);
                                 if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
@@ -209,6 +241,7 @@ public class DanmakuManager {
                         List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
                         for (EntityLivingBase entity : candidates) {
                             if (entity.isDead) continue;
+                            if (!canBulletCollide(bullet, entity)) continue;
                             if (shape.checkCollision(posX, posY, posZ, entity)) {
                                 handleCollision(bullet, world, entity);
                                 if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
@@ -249,6 +282,27 @@ public class DanmakuManager {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }
         }
+    }
+
+    private boolean canBulletCollide(Bullet bullet, EntityLivingBase entity) {
+        if (entity == null || entity.isDead) return false;
+        if (bullet.getShooter() == entity) return false;
+
+        AttackSourceInfo source = bullet.getAttackSourceInfo();
+        if (source != null && source.getOwnerId() != null && source.getOwnerId().equals(entity.getUniqueID())) {
+            return false;
+        }
+
+        if (entity instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) entity;
+            if (player.capabilities.disableDamage) return false;
+        }
+
+        EntityLivingBase shooter = bullet.getShooter();
+        if (shooter != null && shooter != entity && shooter.isOnSameTeam(entity)) {
+            return false;
+        }
+        return true;
     }
 
     @SubscribeEvent
@@ -335,13 +389,18 @@ public class DanmakuManager {
 
     private boolean canLaserCollide(Laser laser, EntityLivingBase entity) {
         if (laser.getShooter() == entity) return false;
+        AttackSourceInfo source = laser.getAttackSourceInfo();
+        if (source != null && source.getOwnerId() != null && source.getOwnerId().equals(entity.getUniqueID())) {
+            return false;
+        }
         if (laser.isOnlyPlayer()) {
             if (!(entity instanceof EntityPlayer)) return false;
         }
         if (entity instanceof EntityPlayer) {
             return !((EntityPlayer) entity).capabilities.disableDamage;
         }
-        return true;
+        EntityLivingBase shooter = laser.getShooter();
+        return shooter == null || !shooter.isOnSameTeam(entity);
     }
 
     private AxisAlignedBB buildSegmentAabb(Vec3d start, Vec3d end, float thickness) {

@@ -1,5 +1,6 @@
 package com.smd.bulletapi;
 
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.LaserCollisionContext;
@@ -80,6 +81,7 @@ public class BulletAPI {
         private boolean onlyPlayer = false;
         private EntityLivingBase shooter;
         private ItemStack shooterHeldItem;
+        private AttackSourceInfo attackSourceInfo;
 
         private BulletBuilder(World world) {
             this.world = world;
@@ -179,6 +181,11 @@ public class BulletAPI {
             return this;
         }
 
+        public BulletBuilder attackSourceInfo(AttackSourceInfo attackSourceInfo) {
+            this.attackSourceInfo = attackSourceInfo;
+            return this;
+        }
+
         public int spawn() {
             if (position == null) throw new IllegalStateException("Position must be set");
             if (velocity == null) throw new IllegalStateException("Velocity must be set");
@@ -188,7 +195,7 @@ public class BulletAPI {
                     world, position, velocity, life, damage,
                     texture, color, size, rendererType, customData,
                     collisionShape, onCollision, tickCallback, onlyPlayer,
-                    shooter, shooterHeldItem
+                    shooter, shooterHeldItem, attackSourceInfo
             );
         }
     }
@@ -214,6 +221,7 @@ public class BulletAPI {
         private Consumer<LaserCollisionContext> onCollision;
         private EntityLivingBase shooter;
         private ItemStack shooterHeldItem;
+        private AttackSourceInfo attackSourceInfo;
 
         private LaserBuilder(World world) {
             this.world = world;
@@ -335,6 +343,11 @@ public class BulletAPI {
             return this;
         }
 
+        public LaserBuilder attackSourceInfo(AttackSourceInfo attackSourceInfo) {
+            this.attackSourceInfo = attackSourceInfo;
+            return this;
+        }
+
         public int spawn() {
             if (world.isRemote) throw new IllegalStateException("Cannot spawn laser on client side");
             if (start == null && !followShooter) throw new IllegalStateException("Start must be set or followShooter enabled");
@@ -360,7 +373,8 @@ public class BulletAPI {
                     eventIntervalTicks,
                     onCollision,
                     shooter,
-                    shooterHeldItem
+                    shooterHeldItem,
+                    attackSourceInfo
             );
         }
     }
@@ -487,6 +501,11 @@ public class BulletAPI {
             return this;
         }
 
+        public SummonBuilder bodyCollisionIntervalTicks(int ticks) {
+            resolveDefinitionForMutation().bodyCollisionIntervalTicks(ticks);
+            return this;
+        }
+
         public SummonBuilder targetSelector(com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector selector) {
             resolveDefinitionForMutation().targetSelector(selector);
             return this;
@@ -574,6 +593,6 @@ public class BulletAPI {
     }
 
     public static void setPlayerMaxSummonSlots(EntityPlayer player, int slots) {
-        SummonManager.getInstance().getSlotManager().setMaxSlots(player, slots);
+        SummonManager.getInstance().setPlayerMaxSlots(player, slots);
     }
 }

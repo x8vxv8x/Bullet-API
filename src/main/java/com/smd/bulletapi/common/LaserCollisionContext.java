@@ -11,6 +11,7 @@ public class LaserCollisionContext {
     public final EntityLivingBase hitEntity;
     public final EntityLivingBase shooter;
     public final ItemStack shooterHeldItem;
+    public final AttackSourceInfo attackSource;
     public float damage;
     public boolean canceled;
 
@@ -23,5 +24,9 @@ public class LaserCollisionContext {
         this.shooter = laser.getShooter();
         ItemStack stack = laser.getShooterHeldItem();
         this.shooterHeldItem = stack == null ? null : stack.copy();
+        this.attackSource = laser.getAttackSourceInfo();
     }
+
+    public boolean isSummonSource() { return attackSource != null && attackSource.isSummonSource(); }
+    public boolean isSummonChildLaser() { return attackSource != null && attackSource.isSummonChildLaser(); }
 }

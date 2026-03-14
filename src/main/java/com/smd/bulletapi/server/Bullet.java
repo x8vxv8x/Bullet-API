@@ -1,5 +1,6 @@
 package com.smd.bulletapi.server;
 
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import net.minecraft.entity.Entity;
@@ -34,12 +35,13 @@ public class Bullet {
     private Consumer<Bullet> tickCallback; // 新增：每 tick 回调
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
+    private final AttackSourceInfo attackSourceInfo;
 
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
                   NBTTagCompound customData, ICollisionShape collisionShape,
                   Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer,
-                  EntityLivingBase shooter, ItemStack shooterHeldItem) {
+                  EntityLivingBase shooter, ItemStack shooterHeldItem, AttackSourceInfo attackSourceInfo) {
         this.id = id;
         this.positionX = position.x;
         this.positionY = position.y;
@@ -62,6 +64,8 @@ public class Bullet {
         this.onlyPlayer = onlyPlayer;
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
+        this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.normal() : attackSourceInfo;
+        this.attackSourceInfo.writeToTag(this.customData);
     }
 
     public void update(World world) {
@@ -124,6 +128,7 @@ public class Bullet {
     public boolean isOnlyPlayer() { return onlyPlayer; }
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+    public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
 
     /**
      * 优先使用该入口，以复用同一次碰撞链路中的 CollisionContext。

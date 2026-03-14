@@ -27,6 +27,7 @@ public class SummonDefinition {
     private double idleRadius = 1.8;
     private int retargetIntervalTicks = 10;
     private int syncIntervalTicks = 2;
+    private int bodyCollisionIntervalTicks = 8;
     private ISummonTargetSelector targetSelector;
     private ISummonMoveController moveController;
     private ISummonAttackPattern attackPattern;
@@ -56,6 +57,7 @@ public class SummonDefinition {
         copy.idleRadius = idleRadius;
         copy.retargetIntervalTicks = retargetIntervalTicks;
         copy.syncIntervalTicks = syncIntervalTicks;
+        copy.bodyCollisionIntervalTicks = bodyCollisionIntervalTicks;
         copy.targetSelector = targetSelector;
         copy.moveController = moveController;
         copy.attackPattern = attackPattern;
@@ -103,6 +105,11 @@ public class SummonDefinition {
     public SummonDefinition retargetIntervalTicks(int retargetIntervalTicks) { this.retargetIntervalTicks = retargetIntervalTicks; return this; }
     public int getSyncIntervalTicks() { return syncIntervalTicks; }
     public SummonDefinition syncIntervalTicks(int syncIntervalTicks) { this.syncIntervalTicks = syncIntervalTicks; return this; }
+    public int getBodyCollisionIntervalTicks() { return bodyCollisionIntervalTicks; }
+    public SummonDefinition bodyCollisionIntervalTicks(int bodyCollisionIntervalTicks) {
+        this.bodyCollisionIntervalTicks = Math.max(0, bodyCollisionIntervalTicks);
+        return this;
+    }
     public ISummonTargetSelector getTargetSelector() { return targetSelector; }
     public SummonDefinition targetSelector(ISummonTargetSelector targetSelector) { this.targetSelector = targetSelector; return this; }
     public ISummonMoveController getMoveController() { return moveController; }

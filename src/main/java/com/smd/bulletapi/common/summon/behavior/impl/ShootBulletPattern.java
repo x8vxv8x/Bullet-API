@@ -1,6 +1,7 @@
 package com.smd.bulletapi.common.summon.behavior.impl;
 
 import com.smd.bulletapi.BulletAPI;
+import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.SummonContext;
@@ -55,6 +56,11 @@ public class ShootBulletPattern implements ISummonAttackPattern {
                 .collisionShape(new SphereShape(0.4))
                 .onCollision(this::onBulletCollision)
                 .shooter(context.owner)
+                .attackSourceInfo(AttackSourceInfo.summonChildBullet(
+                        context.owner.getUniqueID(),
+                        context.summon.getId(),
+                        context.summon.getDefinitionId()
+                ))
                 .spawn();
 
         context.summon.setAttackCooldown(cooldownTicks);
