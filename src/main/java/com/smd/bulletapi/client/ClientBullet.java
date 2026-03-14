@@ -1,10 +1,12 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.IBulletRenderer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.Vec3d;
 
+@InternalApi
 public class ClientBullet {
     private final int id;
     private double positionX;

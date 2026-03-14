@@ -1,6 +1,9 @@
 package com.smd.bulletapi.api;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.builder.SummonBuilder;
+import com.smd.bulletapi.api.handle.SummonHandle;
+import com.smd.bulletapi.api.snapshot.SummonSnapshot;
 import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonManager;
@@ -8,11 +11,16 @@ import com.smd.bulletapi.common.summon.SummonRegistry;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 
+@PublicApi
 public final class SummonApi {
     private SummonApi() {}
 
     public static SummonBuilder builder(World world) {
         return new SummonBuilder(world);
+    }
+
+    public static SummonHandle handle(World world, int id) {
+        return new SummonHandle(world, id);
     }
 
     public static void remove(World world, int id) {
@@ -49,5 +57,13 @@ public final class SummonApi {
 
     public static SummonDefinition getDefinition(String id) {
         return SummonRegistry.get(id);
+    }
+
+    public static boolean exists(World world, int id) {
+        return SummonManager.getInstance().hasSummon(world, id);
+    }
+
+    public static SummonSnapshot snapshot(World world, int id) {
+        return SummonManager.getInstance().getSummonSnapshot(world, id);
     }
 }

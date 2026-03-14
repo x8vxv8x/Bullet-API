@@ -1,5 +1,6 @@
 package com.smd.bulletapi.client.render;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 @SideOnly(Side.CLIENT)
+@PublicApi
 public class RendererRegistry {
     private static final Map<String, Function<NBTTagCompound, IBulletRenderer>> REGISTRY = new HashMap<>();
 

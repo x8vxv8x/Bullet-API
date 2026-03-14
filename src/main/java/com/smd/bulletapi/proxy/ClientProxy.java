@@ -1,5 +1,6 @@
 package com.smd.bulletapi.proxy;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientDanmakuCache;
 import com.smd.bulletapi.client.ClientLaserCache;
 import com.smd.bulletapi.client.ClientSummonCache;
@@ -16,6 +17,7 @@ import com.smd.bulletapi.client.render.RendererRegistry;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 
+@InternalApi
 public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {

@@ -1,5 +1,6 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.LaserBeamRenderer;
 import com.smd.bulletapi.client.render.LaserRendererRegistry;
 import net.minecraft.nbt.NBTTagCompound;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SideOnly(Side.CLIENT)
+@InternalApi
 public class ClientLaserCache {
     public static ClientLaserCache INSTANCE;
 

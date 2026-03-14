@@ -1,5 +1,7 @@
 package com.smd.bulletapi.api.builder;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
+import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.summon.SummonDefinition;
@@ -12,6 +14,7 @@ import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
 
+@PublicApi
 public class SummonBuilder {
     private final World world;
     private EntityLivingBase owner;
@@ -181,9 +184,14 @@ public class SummonBuilder {
     }
 
     public int spawn() {
+        return spawnHandle().getId();
+    }
+
+    public SummonHandle spawnHandle() {
         if (world.isRemote) throw new IllegalStateException("Cannot spawn summon on client side");
         if (owner == null) throw new IllegalStateException("Summon owner must be set");
-        return SummonManager.getInstance().spawnSummon(world, owner, resolveDefinition());
+        int id = SummonManager.getInstance().spawnSummon(world, owner, resolveDefinition());
+        return new SummonHandle(world, id);
     }
 
     private SummonDefinition resolveDefinition() {

@@ -1,9 +1,11 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.ILaserRenderer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 
+@InternalApi
 public class ClientLaser {
     private final int id;
     private Vec3d start;

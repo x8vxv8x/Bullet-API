@@ -1,5 +1,6 @@
 package com.smd.bulletapi.common.summon;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
@@ -7,6 +8,7 @@ import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
 import net.minecraft.nbt.NBTTagCompound;
 
+@PublicApi
 public class SummonDefinition {
     private final String id;
     private int life = 6000;

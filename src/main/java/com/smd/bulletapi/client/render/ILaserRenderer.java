@@ -1,9 +1,11 @@
 package com.smd.bulletapi.client.render;
 
+import com.smd.bulletapi.api.annotation.SpiApi;
 import com.smd.bulletapi.client.ClientLaser;
 
 import java.util.Collection;
 
+@SpiApi
 public interface ILaserRenderer {
     default void beginRender() {}
 

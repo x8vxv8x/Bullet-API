@@ -1,5 +1,6 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.BillboardRenderer;
 import com.smd.bulletapi.client.render.IBulletRenderer;
 import com.smd.bulletapi.client.render.PointSpriteRenderer;
@@ -10,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@InternalApi
 public class RendererFactory {
     private static final Map<String, Function<CreationContext, IBulletRenderer>> REGISTRY = new HashMap<>();
 

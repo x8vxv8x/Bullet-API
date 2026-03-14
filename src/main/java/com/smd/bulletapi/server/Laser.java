@@ -1,7 +1,11 @@
 package com.smd.bulletapi.server;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.api.runtime.ILaserActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.LaserCollisionContext;
+import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
+import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -12,7 +16,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-public class Laser {
+@InternalApi
+public class Laser implements ILaserActor {
     private final int id;
     private Vec3d start;
     private Vec3d direction;
@@ -32,7 +37,9 @@ public class Laser {
     private final int color;
     private final String rendererType;
     private NBTTagCompound customData;
+    private final ILaserHitBehavior hitBehavior;
     private final Consumer<LaserCollisionContext> onCollision;
+    private final ILaserCollisionFilter collisionFilter;
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
     private final AttackSourceInfo attackSourceInfo;
@@ -43,8 +50,10 @@ public class Laser {
                  Vec3d startOffset,
                  Vec3d startOffsetLocal,
                  int eventIntervalTicks,
+                 ILaserHitBehavior hitBehavior,
                  int color, String rendererType, NBTTagCompound customData,
                  Consumer<LaserCollisionContext> onCollision,
+                 ILaserCollisionFilter collisionFilter,
                  EntityLivingBase shooter, ItemStack shooterHeldItem,
                  AttackSourceInfo attackSourceInfo) {
         this.id = id;
@@ -65,7 +74,9 @@ public class Laser {
         this.color = color;
         this.rendererType = rendererType;
         this.customData = customData == null ? new NBTTagCompound() : customData;
+        this.hitBehavior = hitBehavior;
         this.onCollision = onCollision;
+        this.collisionFilter = collisionFilter;
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
         this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.fromTag(this.customData) : attackSourceInfo;
@@ -95,6 +106,9 @@ public class Laser {
     }
 
     public void onCollision(LaserCollisionContext context) {
+        if (hitBehavior != null) {
+            hitBehavior.onHit(context);
+        }
         if (onCollision != null) onCollision.accept(context);
     }
 
@@ -139,10 +153,13 @@ public class Laser {
     public int getColor() { return color; }
     public String getRendererType() { return rendererType; }
     public NBTTagCompound getCustomData() { return customData; }
+    public ILaserHitBehavior getHitBehavior() { return hitBehavior; }
+    public ILaserCollisionFilter getCollisionFilter() { return collisionFilter; }
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
     public void markDead() { this.dead = true; }
+    public int getLife() { return life; }
 
     private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {
         if (local == null) return new Vec3d(0, 0, 0);

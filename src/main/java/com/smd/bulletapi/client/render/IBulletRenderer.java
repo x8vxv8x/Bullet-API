@@ -1,9 +1,11 @@
 package com.smd.bulletapi.client.render;
 
+import com.smd.bulletapi.api.annotation.SpiApi;
 import com.smd.bulletapi.client.ClientBullet;
 
 import java.util.Collection;
 
+@SpiApi
 public interface IBulletRenderer {
 
     /**

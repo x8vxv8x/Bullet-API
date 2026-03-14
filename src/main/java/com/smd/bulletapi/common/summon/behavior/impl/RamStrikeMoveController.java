@@ -4,6 +4,7 @@ import com.smd.bulletapi.common.summon.SummonContext;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
+import com.smd.bulletapi.api.runtime.ISummonActor;
 import com.smd.bulletapi.server.summon.SummonBullet;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.Vec3d;
@@ -42,7 +43,7 @@ public class RamStrikeMoveController implements ISummonMoveController {
 
     @Override
     public void tickMovement(SummonContext context) {
-        SummonBullet summon = context.summon;
+        ISummonActor summon = context.summon;
         RamState state = STATES.computeIfAbsent(summon.getId(), ignored -> new RamState());
         state.lastActiveTick = context.worldTick;
         pruneStaleStates(context.worldTick);

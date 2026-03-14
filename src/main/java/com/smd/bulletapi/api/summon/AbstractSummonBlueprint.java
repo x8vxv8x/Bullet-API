@@ -1,7 +1,9 @@
 package com.smd.bulletapi.api.summon;
 
+import com.smd.bulletapi.api.annotation.SpiApi;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 
+@SpiApi
 public abstract class AbstractSummonBlueprint {
     private final String id;
 

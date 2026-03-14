@@ -1,5 +1,6 @@
 package com.smd.bulletapi.network;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientLaserCache;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
@@ -11,6 +12,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+@InternalApi
 public class SPacketLaser implements IMessage {
     public enum Operation {
         SPAWN, UPDATE, REMOVE

@@ -1,12 +1,14 @@
 package com.smd.bulletapi.common;
 
-import com.smd.bulletapi.server.Laser;
+import com.smd.bulletapi.api.annotation.PublicApi;
+import com.smd.bulletapi.api.runtime.ILaserActor;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
+@PublicApi
 public class LaserCollisionContext {
-    public final Laser laser;
+    public final ILaserActor laser;
     public final World world;
     public final EntityLivingBase hitEntity;
     public final EntityLivingBase shooter;
@@ -15,7 +17,7 @@ public class LaserCollisionContext {
     public float damage;
     public boolean canceled;
 
-    public LaserCollisionContext(Laser laser, World world, EntityLivingBase hitEntity) {
+    public LaserCollisionContext(ILaserActor laser, World world, EntityLivingBase hitEntity) {
         this.laser = laser;
         this.world = world;
         this.hitEntity = hitEntity;

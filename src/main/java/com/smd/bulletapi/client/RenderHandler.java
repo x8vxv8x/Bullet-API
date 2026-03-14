@@ -1,5 +1,6 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.IBulletRenderer;
 import com.smd.bulletapi.client.render.ILaserRenderer;
 import net.minecraft.client.Minecraft;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @SideOnly(Side.CLIENT)
+@InternalApi
 public class RenderHandler {
     private static final Map<IBulletRenderer, List<ClientBullet>> RENDER_GROUPS = new HashMap<>();
     private static final Map<ILaserRenderer, List<ClientLaser>> LASER_GROUPS = new HashMap<>();

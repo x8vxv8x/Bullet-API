@@ -1,5 +1,6 @@
 package com.smd.bulletapi.network;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientBullet;
 import com.smd.bulletapi.client.ClientDanmakuCache;
 import io.netty.buffer.ByteBuf;
@@ -13,6 +14,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+@InternalApi
 public class SPacketDanmaku implements IMessage {
     public enum Operation {
         SPAWN, UPDATE, REMOVE

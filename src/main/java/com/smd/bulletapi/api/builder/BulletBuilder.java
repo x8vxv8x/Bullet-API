@@ -1,10 +1,17 @@
 package com.smd.bulletapi.api.builder;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
+import com.smd.bulletapi.api.handle.BulletHandle;
+import com.smd.bulletapi.api.preset.BulletPreset;
+import com.smd.bulletapi.api.preset.BulletPresetRegistry;
+import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
-import com.smd.bulletapi.server.Bullet;
+import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
+import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
+import com.smd.bulletapi.spi.bullet.IBulletMotionController;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -13,6 +20,7 @@ import net.minecraft.world.World;
 
 import java.util.function.Consumer;
 
+@PublicApi
 public class BulletBuilder {
     private final World world;
     private Vec3d position;
@@ -25,8 +33,11 @@ public class BulletBuilder {
     private String rendererType;
     private final NBTTagCompound customData = new NBTTagCompound();
     private ICollisionShape collisionShape;
+    private IBulletHitBehavior hitBehavior;
     private Consumer<CollisionContext> onCollision;
-    private Consumer<Bullet> tickCallback;
+    private IBulletMotionController motionController;
+    private Consumer<IBulletActor> tickCallback;
+    private IBulletCollisionFilter collisionFilter;
     private boolean onlyPlayer = false;
     private EntityLivingBase shooter;
     private ItemStack shooterHeldItem;
@@ -101,8 +112,29 @@ public class BulletBuilder {
         return this;
     }
 
+    public BulletBuilder preset(String id) {
+        BulletPreset preset = BulletPresetRegistry.get(id);
+        if (preset == null) {
+            throw new IllegalStateException("Unknown bullet preset: " + id);
+        }
+        preset.apply(this);
+        return this;
+    }
+
+    public BulletBuilder preset(BulletPreset preset) {
+        if (preset != null) {
+            preset.apply(this);
+        }
+        return this;
+    }
+
     public BulletBuilder collisionShape(ICollisionShape shape) {
         this.collisionShape = shape;
+        return this;
+    }
+
+    public BulletBuilder hitBehavior(IBulletHitBehavior hitBehavior) {
+        this.hitBehavior = hitBehavior;
         return this;
     }
 
@@ -111,8 +143,18 @@ public class BulletBuilder {
         return this;
     }
 
-    public BulletBuilder onTick(Consumer<Bullet> callback) {
+    public BulletBuilder motionController(IBulletMotionController motionController) {
+        this.motionController = motionController;
+        return this;
+    }
+
+    public BulletBuilder onTick(Consumer<IBulletActor> callback) {
         this.tickCallback = callback;
+        return this;
+    }
+
+    public BulletBuilder collisionFilter(IBulletCollisionFilter collisionFilter) {
+        this.collisionFilter = collisionFilter;
         return this;
     }
 
@@ -132,15 +174,20 @@ public class BulletBuilder {
     }
 
     public int spawn() {
+        return spawnHandle().getId();
+    }
+
+    public BulletHandle spawnHandle() {
         if (position == null) throw new IllegalStateException("Position must be set");
         if (velocity == null) throw new IllegalStateException("Velocity must be set");
         if (world.isRemote) throw new IllegalStateException("Cannot spawn bullet on client side");
 
-        return DanmakuManager.getInstance().spawnBullet(
+        int id = DanmakuManager.getInstance().spawnBullet(
                 world, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, onCollision, tickCallback, onlyPlayer,
+                collisionShape, hitBehavior, onCollision, motionController, tickCallback, collisionFilter, onlyPlayer,
                 shooter, shooterHeldItem, attackSourceInfo
         );
+        return new BulletHandle(world, id);
     }
 }

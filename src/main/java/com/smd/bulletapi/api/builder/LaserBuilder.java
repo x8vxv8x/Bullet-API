@@ -1,8 +1,14 @@
 package com.smd.bulletapi.api.builder;
 
+import com.smd.bulletapi.api.annotation.PublicApi;
+import com.smd.bulletapi.api.handle.LaserHandle;
+import com.smd.bulletapi.api.preset.LaserPreset;
+import com.smd.bulletapi.api.preset.LaserPresetRegistry;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.LaserCollisionContext;
+import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
+import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -11,6 +17,7 @@ import net.minecraft.world.World;
 
 import java.util.function.Consumer;
 
+@PublicApi
 public class LaserBuilder {
     private final World world;
     private Vec3d start;
@@ -29,7 +36,9 @@ public class LaserBuilder {
     private Vec3d startOffset = new Vec3d(0, 0, 0);
     private Vec3d startOffsetLocal = new Vec3d(0, 0, 0);
     private int eventIntervalTicks = 0;
+    private ILaserHitBehavior hitBehavior;
     private Consumer<LaserCollisionContext> onCollision;
+    private ILaserCollisionFilter collisionFilter;
     private EntityLivingBase shooter;
     private ItemStack shooterHeldItem;
     private AttackSourceInfo attackSourceInfo;
@@ -113,6 +122,22 @@ public class LaserBuilder {
         return this;
     }
 
+    public LaserBuilder preset(String id) {
+        LaserPreset preset = LaserPresetRegistry.get(id);
+        if (preset == null) {
+            throw new IllegalStateException("Unknown laser preset: " + id);
+        }
+        preset.apply(this);
+        return this;
+    }
+
+    public LaserBuilder preset(LaserPreset preset) {
+        if (preset != null) {
+            preset.apply(this);
+        }
+        return this;
+    }
+
     public LaserBuilder penetrate(boolean penetrate) {
         this.penetrate = penetrate;
         return this;
@@ -133,8 +158,18 @@ public class LaserBuilder {
         return this;
     }
 
+    public LaserBuilder hitBehavior(ILaserHitBehavior hitBehavior) {
+        this.hitBehavior = hitBehavior;
+        return this;
+    }
+
     public LaserBuilder onCollision(Consumer<LaserCollisionContext> callback) {
         this.onCollision = callback;
+        return this;
+    }
+
+    public LaserBuilder collisionFilter(ILaserCollisionFilter collisionFilter) {
+        this.collisionFilter = collisionFilter;
         return this;
     }
 
@@ -154,11 +189,15 @@ public class LaserBuilder {
     }
 
     public int spawn() {
+        return spawnHandle().getId();
+    }
+
+    public LaserHandle spawnHandle() {
         if (world.isRemote) throw new IllegalStateException("Cannot spawn laser on client side");
         if (start == null && !followShooter) throw new IllegalStateException("Start must be set or followShooter enabled");
         if (direction == null && !followShooter) throw new IllegalStateException("Direction must be set or followShooter enabled");
 
-        return DanmakuManager.getInstance().spawnLaser(
+        int id = DanmakuManager.getInstance().spawnLaser(
                 world,
                 start,
                 direction,
@@ -176,10 +215,13 @@ public class LaserBuilder {
                 startOffset,
                 startOffsetLocal,
                 eventIntervalTicks,
+                hitBehavior,
                 onCollision,
+                collisionFilter,
                 shooter,
                 shooterHeldItem,
                 attackSourceInfo
         );
+        return new LaserHandle(world, id);
     }
 }

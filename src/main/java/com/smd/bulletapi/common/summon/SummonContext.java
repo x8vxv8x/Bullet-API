@@ -1,20 +1,22 @@
 package com.smd.bulletapi.common.summon;
 
-import com.smd.bulletapi.server.summon.SummonBullet;
+import com.smd.bulletapi.api.annotation.PublicApi;
+import com.smd.bulletapi.api.runtime.ISummonActor;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+@PublicApi
 public class SummonContext {
-    public final SummonManager manager;
+    private final SummonManager manager;
     public final World world;
-    public final SummonBullet summon;
+    public final ISummonActor summon;
     public final EntityLivingBase owner;
     public final SummonDefinition definition;
     public final long worldTick;
     private EntityLivingBase target;
 
-    public SummonContext(SummonManager manager, World world, SummonBullet summon,
+    public SummonContext(SummonManager manager, World world, ISummonActor summon,
                          EntityLivingBase owner, SummonDefinition definition,
                          long worldTick, EntityLivingBase target) {
         this.manager = manager;

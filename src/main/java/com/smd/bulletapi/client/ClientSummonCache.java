@@ -1,5 +1,6 @@
 package com.smd.bulletapi.client;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.BillboardRenderer;
 import com.smd.bulletapi.client.render.IBulletRenderer;
 import com.smd.bulletapi.client.render.PointSpriteRenderer;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SideOnly(Side.CLIENT)
+@InternalApi
 public class ClientSummonCache {
     public static ClientSummonCache INSTANCE;
 

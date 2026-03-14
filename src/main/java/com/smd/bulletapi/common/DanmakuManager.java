@@ -1,14 +1,29 @@
 package com.smd.bulletapi.common;
 
-import com.smd.bulletapi.common.AttackSourceInfo;
+import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.api.runtime.IBulletActor;
+import com.smd.bulletapi.api.snapshot.BulletSnapshot;
+import com.smd.bulletapi.api.snapshot.LaserSnapshot;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.LaserCollisionEvent;
+import com.smd.bulletapi.event.lifecycle.BulletRemoveEvent;
+import com.smd.bulletapi.event.lifecycle.BulletSpawnEvent;
+import com.smd.bulletapi.event.lifecycle.LaserRemoveEvent;
+import com.smd.bulletapi.event.lifecycle.LaserSpawnEvent;
+import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketDanmaku;
 import com.smd.bulletapi.network.SPacketLaser;
 import com.smd.bulletapi.server.Bullet;
 import com.smd.bulletapi.server.Laser;
+import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
+import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
+import com.smd.bulletapi.spi.bullet.IBulletMotionController;
+import com.smd.bulletapi.spi.combat.CombatRelation;
+import com.smd.bulletapi.spi.combat.CombatRelationResolverRegistry;
+import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
+import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -31,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+@InternalApi
 public class DanmakuManager {
     private static final DanmakuManager INSTANCE = new DanmakuManager();
     private final Map<World, Map<Integer, Bullet>> worldBullets = new ConcurrentHashMap<>();
@@ -54,16 +70,19 @@ public class DanmakuManager {
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
                            String texture, int color, float size, String rendererType,
                            NBTTagCompound customData, ICollisionShape collisionShape,
-                           Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback,
-                           boolean onlyPlayer, EntityLivingBase shooter, ItemStack shooterHeldItem,
+                           IBulletHitBehavior hitBehavior, Consumer<CollisionContext> onCollision,
+                           IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
+                           IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
+                           EntityLivingBase shooter, ItemStack shooterHeldItem,
                            AttackSourceInfo attackSourceInfo) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, onCollision, tickCallback, onlyPlayer,
+                collisionShape, hitBehavior, onCollision, motionController, tickCallback, collisionFilter, onlyPlayer,
                 shooter, shooterHeldItem, attackSourceInfo);
         getWorldMap(world).put(id, bullet);
+        MinecraftForge.EVENT_BUS.post(new BulletSpawnEvent(world, createBulletSnapshot(bullet)));
         PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(
                 id, position, velocity, life, damage, texture, color, size, rendererType, customData),
                 world.provider.getDimension());
@@ -71,11 +90,18 @@ public class DanmakuManager {
     }
 
     public void removeBullet(World world, int id) {
+        removeBullet(world, id, LifecycleRemoveReason.API_REQUEST);
+    }
+
+    public void removeBullet(World world, int id, LifecycleRemoveReason reason) {
         Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map != null) {
-            map.remove(id);
-            PacketHandler.sendToDimension(SPacketDanmaku.createRemove(id), world.provider.getDimension());
-        }
+        if (map == null) return;
+
+        Bullet removed = map.remove(id);
+        if (removed == null) return;
+
+        MinecraftForge.EVENT_BUS.post(new BulletRemoveEvent(world, createBulletSnapshot(removed), reason));
+        PacketHandler.sendToDimension(SPacketDanmaku.createRemove(id), world.provider.getDimension());
     }
 
     public void updateBulletVelocity(World world, int id, Vec3d newVelocity) {
@@ -89,6 +115,20 @@ public class DanmakuManager {
         }
     }
 
+    public boolean hasBullet(World world, int id) {
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map == null) return false;
+        Bullet bullet = map.get(id);
+        return bullet != null && !bullet.isDead();
+    }
+
+    public BulletSnapshot getBulletSnapshot(World world, int id) {
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map == null) return null;
+        Bullet bullet = map.get(id);
+        return bullet == null ? null : createBulletSnapshot(bullet);
+    }
+
     public int spawnLaser(World world, Vec3d start, Vec3d direction, double maxLength,
                           float thickness, int life, float damage, int color,
                           String rendererType, NBTTagCompound customData,
@@ -97,7 +137,9 @@ public class DanmakuManager {
                           Vec3d startOffset,
                           Vec3d startOffsetLocal,
                           int eventIntervalTicks,
+                          ILaserHitBehavior hitBehavior,
                           Consumer<LaserCollisionContext> onCollision,
+                          ILaserCollisionFilter collisionFilter,
                           EntityLivingBase shooter, ItemStack shooterHeldItem,
                           AttackSourceInfo attackSourceInfo) {
         if (world.isRemote) return -1;
@@ -122,10 +164,11 @@ public class DanmakuManager {
         int id = nextId.getAndIncrement();
         Laser laser = new Laser(id, start, direction, maxLength, thickness, damage,
                 life, penetrate, followShooter, onlyPlayer, blockStops, offset, offsetLocal,
-                eventIntervalTicks,
-                color, rendererType, customData, onCollision, shooter, shooterHeldItem, attackSourceInfo);
+                eventIntervalTicks, hitBehavior, color, rendererType, customData, onCollision, collisionFilter,
+                shooter, shooterHeldItem, attackSourceInfo);
         laser.setCurrentLength(computeLaserLength(laser, world));
         getLaserWorldMap(world).put(id, laser);
+        MinecraftForge.EVENT_BUS.post(new LaserSpawnEvent(world, createLaserSnapshot(laser)));
         PacketHandler.sendToDimension(SPacketLaser.createSpawn(
                 id, world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength(),
                 laser.getThickness(), laser.getColor(), laser.getRendererType(), laser.getCustomData()),
@@ -134,11 +177,18 @@ public class DanmakuManager {
     }
 
     public void removeLaser(World world, int id) {
+        removeLaser(world, id, LifecycleRemoveReason.API_REQUEST);
+    }
+
+    public void removeLaser(World world, int id, LifecycleRemoveReason reason) {
         Map<Integer, Laser> map = worldLasers.get(world);
-        if (map != null) {
-            map.remove(id);
-            PacketHandler.sendToDimension(SPacketLaser.createRemove(id), world.provider.getDimension());
-        }
+        if (map == null) return;
+
+        Laser removed = map.remove(id);
+        if (removed == null) return;
+
+        MinecraftForge.EVENT_BUS.post(new LaserRemoveEvent(world, createLaserSnapshot(removed), reason));
+        PacketHandler.sendToDimension(SPacketLaser.createRemove(id), world.provider.getDimension());
     }
 
     public boolean hasLaser(World world, int id) {
@@ -146,6 +196,13 @@ public class DanmakuManager {
         if (map == null) return false;
         Laser laser = map.get(id);
         return laser != null && !laser.isDead();
+    }
+
+    public LaserSnapshot getLaserSnapshot(World world, int id) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null) return null;
+        Laser laser = map.get(id);
+        return laser == null ? null : createLaserSnapshot(laser);
     }
 
     public boolean updateLaserTransform(World world, int id, Vec3d start, Vec3d direction) {
@@ -171,89 +228,80 @@ public class DanmakuManager {
     @SubscribeEvent
     public void onWorldTick(TickEvent.WorldTickEvent event) {
         World world = event.world;
-        if (world.isRemote) return;
-        if (event.phase == TickEvent.Phase.END) {
-            Map<Integer, Laser> laserMap = worldLasers.get(world);
-            if (laserMap != null) {
-                for (Laser laser : laserMap.values()) {
-                    laser.update(world);
-                }
+        if (world.isRemote || event.phase != TickEvent.Phase.END) return;
 
-                List<Laser> lasers = new ArrayList<>(laserMap.values());
-                for (Laser laser : lasers) {
-                    if (laser.isDead()) continue;
-                    if (laserMap.get(laser.getId()) != laser) continue;
-
-                    double length = computeLaserLength(laser, world);
-                    laser.setCurrentLength(length);
-
-                    handleLaserCollision(laser, world);
-
-                    PacketHandler.sendToDimension(SPacketLaser.createUpdate(
-                            laser.getId(), world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength()),
-                            world.provider.getDimension());
-                }
-
-                for (Map.Entry<Integer, Laser> entry : laserMap.entrySet()) {
-                    if (entry.getValue().isDead()) {
-                        PacketHandler.sendToDimension(SPacketLaser.createRemove(entry.getKey()),
-                                world.provider.getDimension());
-                    }
-                }
-                laserMap.entrySet().removeIf(entry -> entry.getValue().isDead());
+        Map<Integer, Laser> laserMap = worldLasers.get(world);
+        if (laserMap != null) {
+            for (Laser laser : laserMap.values()) {
+                laser.update(world);
             }
 
-            Map<Integer, Bullet> map = worldBullets.get(world);
-            if (map != null) {
-                // update bullet positions first
-                for (Bullet bullet : map.values()) {
-                    bullet.update(world);
+            List<Laser> lasers = new ArrayList<>(laserMap.values());
+            for (Laser laser : lasers) {
+                if (laser.isDead()) continue;
+                if (laserMap.get(laser.getId()) != laser) continue;
+
+                double length = computeLaserLength(laser, world);
+                laser.setCurrentLength(length);
+                handleLaserCollision(laser, world);
+
+                PacketHandler.sendToDimension(SPacketLaser.createUpdate(
+                        laser.getId(), world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength()),
+                        world.provider.getDimension());
+            }
+
+            removeDeadLasers(world, laserMap, LifecycleRemoveReason.EXPIRED);
+        }
+
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map != null) {
+            for (Bullet bullet : map.values()) {
+                bullet.update(world);
+            }
+
+            List<Bullet> bullets = new ArrayList<>(map.values());
+            List<EntityLivingBase> fallbackEntities = new ArrayList<>();
+            for (Entity entity : world.loadedEntityList) {
+                if (!entity.isDead && entity instanceof EntityLivingBase) {
+                    fallbackEntities.add((EntityLivingBase) entity);
                 }
+            }
 
-                List<Bullet> bullets = new ArrayList<>(map.values());
-                List<EntityLivingBase> fallbackEntities = new ArrayList<>();
-                for (Entity entity : world.loadedEntityList) {
-                    if (!entity.isDead && entity instanceof EntityLivingBase) {
-                        fallbackEntities.add((EntityLivingBase) entity);
-                    }
-                }
+            for (Bullet bullet : bullets) {
+                ICollisionShape shape = bullet.getCollisionShape();
+                if (shape == null || bullet.isDead()) continue;
+                if (map.get(bullet.getId()) != bullet) continue;
 
-                for (Bullet bullet : bullets) {
-                    ICollisionShape shape = bullet.getCollisionShape();
-                    if (shape == null || bullet.isDead()) continue;
-                    if (map.get(bullet.getId()) != bullet) continue;
-
-                    double posX = bullet.getPosX();
-                    double posY = bullet.getPosY();
-                    double posZ = bullet.getPosZ();
-                    if (bullet.isOnlyPlayer()) {
-                        for (EntityPlayer player : world.playerEntities) {
-                            if (player.isDead || player.capabilities.disableDamage) continue;
-                            if (!canBulletCollide(bullet, player)) continue;
-                            if (shape.checkCollision(posX, posY, posZ, player)) {
-                                handleCollision(bullet, world, player);
-                                if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
-                                    break;
-                                }
+                double posX = bullet.getPosX();
+                double posY = bullet.getPosY();
+                double posZ = bullet.getPosZ();
+                if (bullet.isOnlyPlayer()) {
+                    for (EntityPlayer player : world.playerEntities) {
+                        if (player.isDead || player.capabilities.disableDamage) continue;
+                        if (!canBulletCollide(world, bullet, player)) continue;
+                        if (shape.checkCollision(posX, posY, posZ, player)) {
+                            handleCollision(bullet, world, player);
+                            if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                                break;
                             }
                         }
-                    } else {
-                        List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
-                        for (EntityLivingBase entity : candidates) {
-                            if (entity.isDead) continue;
-                            if (!canBulletCollide(bullet, entity)) continue;
-                            if (shape.checkCollision(posX, posY, posZ, entity)) {
-                                handleCollision(bullet, world, entity);
-                                if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
-                                    break;
-                                }
+                    }
+                } else {
+                    List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
+                    for (EntityLivingBase entity : candidates) {
+                        if (entity.isDead) continue;
+                        if (!canBulletCollide(world, bullet, entity)) continue;
+                        if (shape.checkCollision(posX, posY, posZ, entity)) {
+                            handleCollision(bullet, world, entity);
+                            if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                                break;
                             }
                         }
                     }
                 }
-
-                map.entrySet().removeIf(entry -> entry.getValue().isDead());
             }
+
+            removeDeadBullets(world, map, LifecycleRemoveReason.EXPIRED);
         }
     }
 
@@ -272,7 +320,6 @@ public class DanmakuManager {
     }
 
     private void handleCollision(Bullet bullet, World world, Entity entity) {
-        // 单次碰撞链路（事件 -> 回调 -> 默认伤害）复用同一个 CollisionContext。
         CollisionContext ctx = new CollisionContext(bullet, world, entity);
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
@@ -284,7 +331,7 @@ public class DanmakuManager {
         }
     }
 
-    private boolean canBulletCollide(Bullet bullet, EntityLivingBase entity) {
+    private boolean canBulletCollide(World world, Bullet bullet, EntityLivingBase entity) {
         if (entity == null || entity.isDead) return false;
         if (bullet.getShooter() == entity) return false;
 
@@ -293,26 +340,50 @@ public class DanmakuManager {
             return false;
         }
 
-        if (entity instanceof EntityPlayer) {
-            EntityPlayer player = (EntityPlayer) entity;
-            if (player.capabilities.disableDamage) return false;
+        if (entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.disableDamage) {
+            return false;
         }
 
         EntityLivingBase shooter = bullet.getShooter();
-        if (shooter != null && shooter != entity && shooter.isOnSameTeam(entity)) {
+        boolean defaultAllowed = shooter == null || shooter == entity || !shooter.isOnSameTeam(entity);
+
+        IBulletCollisionFilter filter = bullet.getCollisionFilter();
+        if (filter != null && !filter.canCollide(world, bullet, entity)) {
             return false;
         }
-        return true;
+
+        CombatRelation relation = CombatRelationResolverRegistry.resolveBullet(world, bullet, entity);
+        if (relation == CombatRelation.DENY) {
+            return false;
+        }
+        return relation == CombatRelation.ALLOW || defaultAllowed;
     }
 
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
-        worldBullets.remove(event.getWorld());
-        worldLasers.remove(event.getWorld());
+        World world = event.getWorld();
+        Map<Integer, Bullet> removedBullets = worldBullets.remove(world);
+        if (removedBullets != null) {
+            for (Bullet bullet : removedBullets.values()) {
+                MinecraftForge.EVENT_BUS.post(new BulletRemoveEvent(world, createBulletSnapshot(bullet), LifecycleRemoveReason.WORLD_UNLOAD));
+            }
+        }
+
+        Map<Integer, Laser> removedLasers = worldLasers.remove(world);
+        if (removedLasers != null) {
+            for (Laser laser : removedLasers.values()) {
+                MinecraftForge.EVENT_BUS.post(new LaserRemoveEvent(world, createLaserSnapshot(laser), LifecycleRemoveReason.WORLD_UNLOAD));
+            }
+        }
     }
 
     public int getBulletCount(World world) {
         Map<Integer, Bullet> map = worldBullets.get(world);
+        return map == null ? 0 : map.size();
+    }
+
+    public int getLaserCount(World world) {
+        Map<Integer, Laser> map = worldLasers.get(world);
         return map == null ? 0 : map.size();
     }
 
@@ -332,7 +403,7 @@ public class DanmakuManager {
         Vec3d start = laser.getStart();
         Vec3d dir = laser.getDirection();
         double length = laser.getCurrentLength();
-        if (length <= 0.0) return;
+        if (length <= 0.0D) return;
         Vec3d end = start.add(dir.scale(length));
 
         AxisAlignedBB searchBox = buildSegmentAabb(start, end, laser.getThickness());
@@ -344,7 +415,7 @@ public class DanmakuManager {
             double closestT = Double.MAX_VALUE;
             for (EntityLivingBase entity : candidates) {
                 if (entity.isDead) continue;
-                if (!canLaserCollide(laser, entity)) continue;
+                if (!canLaserCollide(world, laser, entity)) continue;
                 double tEntry = segmentBoxEntry(start, end, entity.getEntityBoundingBox().grow(laser.getThickness()));
                 if (!Double.isNaN(tEntry) && tEntry < closestT) {
                     closestT = tEntry;
@@ -353,7 +424,7 @@ public class DanmakuManager {
             }
 
             if (closest != null) {
-                double clampedT = Math.max(0.0, Math.min(1.0, closestT));
+                double clampedT = Math.max(0.0D, Math.min(1.0D, closestT));
                 laser.setCurrentLength(length * clampedT);
                 if (laser.canTrigger(closest, worldTick)) {
                     handleLaserHit(laser, world, closest, worldTick);
@@ -364,12 +435,10 @@ public class DanmakuManager {
 
         for (EntityLivingBase entity : candidates) {
             if (entity.isDead) continue;
-            if (!canLaserCollide(laser, entity)) continue;
+            if (!canLaserCollide(world, laser, entity)) continue;
             double tEntry = segmentBoxEntry(start, end, entity.getEntityBoundingBox().grow(laser.getThickness()));
-            if (!Double.isNaN(tEntry)) {
-                if (laser.canTrigger(entity, worldTick)) {
-                    handleLaserHit(laser, world, entity, worldTick);
-                }
+            if (!Double.isNaN(tEntry) && laser.canTrigger(entity, worldTick)) {
+                handleLaserHit(laser, world, entity, worldTick);
             }
         }
     }
@@ -387,20 +456,91 @@ public class DanmakuManager {
         laser.markTriggered(entity, worldTick);
     }
 
-    private boolean canLaserCollide(Laser laser, EntityLivingBase entity) {
+    private boolean canLaserCollide(World world, Laser laser, EntityLivingBase entity) {
         if (laser.getShooter() == entity) return false;
         AttackSourceInfo source = laser.getAttackSourceInfo();
         if (source != null && source.getOwnerId() != null && source.getOwnerId().equals(entity.getUniqueID())) {
             return false;
         }
-        if (laser.isOnlyPlayer()) {
-            if (!(entity instanceof EntityPlayer)) return false;
+        if (laser.isOnlyPlayer() && !(entity instanceof EntityPlayer)) return false;
+        if (entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.disableDamage) {
+            return false;
         }
-        if (entity instanceof EntityPlayer) {
-            return !((EntityPlayer) entity).capabilities.disableDamage;
-        }
+
         EntityLivingBase shooter = laser.getShooter();
-        return shooter == null || !shooter.isOnSameTeam(entity);
+        boolean defaultAllowed = shooter == null || !shooter.isOnSameTeam(entity);
+
+        ILaserCollisionFilter filter = laser.getCollisionFilter();
+        if (filter != null && !filter.canCollide(world, laser, entity)) {
+            return false;
+        }
+
+        CombatRelation relation = CombatRelationResolverRegistry.resolveLaser(world, laser, entity);
+        if (relation == CombatRelation.DENY) {
+            return false;
+        }
+        return relation == CombatRelation.ALLOW || defaultAllowed;
+    }
+
+    private void removeDeadBullets(World world, Map<Integer, Bullet> map, LifecycleRemoveReason reason) {
+        List<Integer> deadIds = new ArrayList<>();
+        for (Map.Entry<Integer, Bullet> entry : map.entrySet()) {
+            if (entry.getValue().isDead()) {
+                deadIds.add(entry.getKey());
+            }
+        }
+        for (Integer deadId : deadIds) {
+            removeBullet(world, deadId, reason);
+        }
+    }
+
+    private void removeDeadLasers(World world, Map<Integer, Laser> map, LifecycleRemoveReason reason) {
+        List<Integer> deadIds = new ArrayList<>();
+        for (Map.Entry<Integer, Laser> entry : map.entrySet()) {
+            if (entry.getValue().isDead()) {
+                deadIds.add(entry.getKey());
+            }
+        }
+        for (Integer deadId : deadIds) {
+            removeLaser(world, deadId, reason);
+        }
+    }
+
+    private BulletSnapshot createBulletSnapshot(Bullet bullet) {
+        return new BulletSnapshot(
+                bullet.getId(),
+                bullet.getPosition(),
+                bullet.getVelocity(),
+                bullet.getLife(),
+                bullet.getDamage(),
+                bullet.getTexture(),
+                bullet.getColor(),
+                bullet.getSize(),
+                bullet.getRendererType(),
+                bullet.getCustomData(),
+                bullet.isOnlyPlayer(),
+                bullet.getAttackSourceInfo()
+        );
+    }
+
+    private LaserSnapshot createLaserSnapshot(Laser laser) {
+        return new LaserSnapshot(
+                laser.getId(),
+                laser.getStart(),
+                laser.getDirection(),
+                laser.getMaxLength(),
+                laser.getCurrentLength(),
+                laser.getThickness(),
+                laser.getLife(),
+                laser.getDamage(),
+                laser.getColor(),
+                laser.getRendererType(),
+                laser.getCustomData(),
+                laser.isOnlyPlayer(),
+                laser.isPenetrate(),
+                laser.isBlockStops(),
+                laser.getAttackSourceInfo()
+        );
     }
 
     private AxisAlignedBB buildSegmentAabb(Vec3d start, Vec3d end, float thickness) {
@@ -433,13 +573,13 @@ public class DanmakuManager {
         double dy = end.y - start.y;
         double dz = end.z - start.z;
 
-        double tmin = 0.0;
-        double tmax = 1.0;
+        double tmin = 0.0D;
+        double tmax = 1.0D;
 
         if (Math.abs(dx) < 1.0E-8) {
             if (start.x < box.minX || start.x > box.maxX) return Double.NaN;
         } else {
-            double inv = 1.0 / dx;
+            double inv = 1.0D / dx;
             double t1 = (box.minX - start.x) * inv;
             double t2 = (box.maxX - start.x) * inv;
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
@@ -451,7 +591,7 @@ public class DanmakuManager {
         if (Math.abs(dy) < 1.0E-8) {
             if (start.y < box.minY || start.y > box.maxY) return Double.NaN;
         } else {
-            double inv = 1.0 / dy;
+            double inv = 1.0D / dy;
             double t1 = (box.minY - start.y) * inv;
             double t2 = (box.maxY - start.y) * inv;
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
@@ -463,7 +603,7 @@ public class DanmakuManager {
         if (Math.abs(dz) < 1.0E-8) {
             if (start.z < box.minZ || start.z > box.maxZ) return Double.NaN;
         } else {
-            double inv = 1.0 / dz;
+            double inv = 1.0D / dz;
             double t1 = (box.minZ - start.z) * inv;
             double t2 = (box.maxZ - start.z) * inv;
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }

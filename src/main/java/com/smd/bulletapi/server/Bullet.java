@@ -1,8 +1,13 @@
 package com.smd.bulletapi.server;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
+import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
+import com.smd.bulletapi.spi.bullet.IBulletMotionController;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
@@ -12,7 +17,8 @@ import net.minecraft.world.World;
 
 import java.util.function.Consumer;
 
-public class Bullet {
+@InternalApi
+public class Bullet implements IBulletActor {
     private final int id;
     private double positionX;
     private double positionY;
@@ -31,8 +37,11 @@ public class Bullet {
     private String rendererType;
     private NBTTagCompound customData;
     private ICollisionShape collisionShape;
+    private IBulletHitBehavior hitBehavior;
     private Consumer<CollisionContext> onCollision;
-    private Consumer<Bullet> tickCallback; // 新增：每 tick 回调
+    private IBulletMotionController motionController;
+    private Consumer<IBulletActor> tickCallback; // 新增：每 tick 回调
+    private IBulletCollisionFilter collisionFilter;
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
     private final AttackSourceInfo attackSourceInfo;
@@ -40,7 +49,9 @@ public class Bullet {
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
                   NBTTagCompound customData, ICollisionShape collisionShape,
-                  Consumer<CollisionContext> onCollision, Consumer<Bullet> tickCallback, boolean onlyPlayer,
+                  IBulletHitBehavior hitBehavior, Consumer<CollisionContext> onCollision,
+                  IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
+                  IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
                   EntityLivingBase shooter, ItemStack shooterHeldItem, AttackSourceInfo attackSourceInfo) {
         this.id = id;
         this.positionX = position.x;
@@ -59,8 +70,11 @@ public class Bullet {
         this.rendererType = rendererType;
         this.customData = customData == null ? new NBTTagCompound() : customData;
         this.collisionShape = collisionShape;
+        this.hitBehavior = hitBehavior;
         this.onCollision = onCollision;
+        this.motionController = motionController;
         this.tickCallback = tickCallback;
+        this.collisionFilter = collisionFilter;
         this.onlyPlayer = onlyPlayer;
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
@@ -70,6 +84,10 @@ public class Bullet {
 
     public void update(World world) {
         if (dead) return;
+
+        if (motionController != null) {
+            motionController.tick(world, this);
+        }
 
         // 调用自定义每 tick 回调（开发者可在此修改速度等）
         if (tickCallback != null) {
@@ -122,9 +140,12 @@ public class Bullet {
     public void setCustomData(NBTTagCompound customData) { this.customData = customData; }
     public ICollisionShape getCollisionShape() { return collisionShape; }
     public boolean hasCollision() { return collisionShape != null; }
+    public IBulletHitBehavior getHitBehavior() { return hitBehavior; }
     public Consumer<CollisionContext> getOnCollision() { return onCollision; }
-    public Consumer<Bullet> getTickCallback() { return tickCallback; }
-    public void setTickCallback(Consumer<Bullet> tickCallback) { this.tickCallback = tickCallback; }
+    public IBulletMotionController getMotionController() { return motionController; }
+    public Consumer<IBulletActor> getTickCallback() { return tickCallback; }
+    public void setTickCallback(Consumer<IBulletActor> tickCallback) { this.tickCallback = tickCallback; }
+    public IBulletCollisionFilter getCollisionFilter() { return collisionFilter; }
     public boolean isOnlyPlayer() { return onlyPlayer; }
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
@@ -134,6 +155,9 @@ public class Bullet {
      * 优先使用该入口，以复用同一次碰撞链路中的 CollisionContext。
      */
     public void onCollision(CollisionContext context) {
+        if (hitBehavior != null) {
+            hitBehavior.onHit(context);
+        }
         if (onCollision != null) {
             onCollision.accept(context);
         }

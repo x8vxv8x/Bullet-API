@@ -1,5 +1,7 @@
 package com.smd.bulletapi.server.summon;
 
+import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.api.runtime.ISummonActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonState;
@@ -14,7 +16,8 @@ import java.util.UUID;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SummonBullet extends Bullet {
+@InternalApi
+public class SummonBullet extends Bullet implements ISummonActor {
     private final UUID ownerId;
     private final int slotCost;
     private final String definitionId;
@@ -36,7 +39,7 @@ public class SummonBullet extends Bullet {
                 definition.getTexture(), definition.getColor(), definition.getSize(),
                 definition.getRendererType(),
                 definition.getCustomData() == null ? new NBTTagCompound() : definition.getCustomData().copy(),
-                definition.getCollisionShape(), null, null, false, owner, null,
+                definition.getCollisionShape(), null, null, null, null, null, false, owner, null,
                 AttackSourceInfo.summonBody(owner.getUniqueID(), id, definition.getId()));
         this.ownerId = owner.getUniqueID();
         this.slotCost = definition.getSlotCost();
@@ -72,6 +75,10 @@ public class SummonBullet extends Bullet {
         if (targetEntityId < 0) return null;
         Entity entity = world.getEntityByID(targetEntityId);
         return entity instanceof EntityLivingBase && !entity.isDead ? (EntityLivingBase) entity : null;
+    }
+
+    public int getTargetEntityId() {
+        return targetEntityId;
     }
 
     public void setTarget(EntityLivingBase target) {
