@@ -5,9 +5,12 @@ import com.smd.bulletapi.client.render.BillboardRenderer;
 import com.smd.bulletapi.client.render.IBulletRenderer;
 import com.smd.bulletapi.client.render.PointSpriteRenderer;
 import com.smd.bulletapi.client.render.RendererRegistry;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.Vec3d;
+import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -56,21 +59,45 @@ public class ClientDanmakuCache {
         }
     }
 
+    public void clear() {
+        for (ClientBullet bullet : bullets.values()) {
+            IBulletRenderer renderer = bullet.getRenderer();
+            if (renderer != null) {
+                renderer.deleteGlResources();
+            }
+        }
+        bullets.clear();
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            for (ClientBullet bullet : bullets.values()) {
-                bullet.tick();
-            }
-            bullets.entrySet().removeIf(entry -> {
-                if (entry.getValue().isDead()) {
-                    IBulletRenderer renderer = entry.getValue().getRenderer();
-                    if (renderer != null) renderer.deleteGlResources();
-                    return true;
-                }
-                return false;
-            });
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null || mc.player == null || mc.isGamePaused()) return;
+
+        for (ClientBullet bullet : bullets.values()) {
+            bullet.tick();
         }
+        bullets.entrySet().removeIf(entry -> {
+            if (entry.getValue().isDead()) {
+                IBulletRenderer renderer = entry.getValue().getRenderer();
+                if (renderer != null) renderer.deleteGlResources();
+                return true;
+            }
+            return false;
+        });
+    }
+
+    @SubscribeEvent
+    public void onClientWorldUnload(WorldEvent.Unload event) {
+        if (event.getWorld().isRemote) {
+            clear();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        clear();
     }
 
     public Map<Integer, ClientBullet> getBullets() {

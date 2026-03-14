@@ -23,6 +23,13 @@ public class RenderHandler {
 
     @SubscribeEvent
     public static void onRenderWorldLast(RenderWorldLastEvent event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null || mc.player == null) {
+            RENDER_GROUPS.clear();
+            LASER_GROUPS.clear();
+            return;
+        }
+
         ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
         ClientLaserCache laserCache = ClientLaserCache.INSTANCE;
         ClientSummonCache summonCache = ClientSummonCache.INSTANCE;
@@ -31,7 +38,6 @@ public class RenderHandler {
         boolean hasLasers = laserCache != null && !laserCache.getLasers().isEmpty();
         if (!hasBullets && !hasSummons && !hasLasers) return;
 
-        Minecraft mc = Minecraft.getMinecraft();
         float partialTicks = event.getPartialTicks();
 
         // 获取摄像机位置（用于坐标变换）

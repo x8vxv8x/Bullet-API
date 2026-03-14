@@ -3,11 +3,15 @@ package com.smd.bulletapi.client;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.LaserBeamRenderer;
 import com.smd.bulletapi.client.render.LaserRendererRegistry;
+import com.smd.bulletapi.client.render.ILaserRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -53,13 +57,37 @@ public class ClientLaserCache {
         }
     }
 
-    @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            for (ClientLaser laser : lasers.values()) {
-                laser.tick();
+    public void clear() {
+        for (ClientLaser laser : lasers.values()) {
+            ILaserRenderer renderer = laser.getRenderer();
+            if (renderer != null) {
+                renderer.deleteGlResources();
             }
         }
+        lasers.clear();
+    }
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null || mc.player == null || mc.isGamePaused()) return;
+
+        for (ClientLaser laser : lasers.values()) {
+            laser.tick();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientWorldUnload(WorldEvent.Unload event) {
+        if (event.getWorld().isRemote) {
+            clear();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        clear();
     }
 
     public Map<Integer, ClientLaser> getLasers() {
