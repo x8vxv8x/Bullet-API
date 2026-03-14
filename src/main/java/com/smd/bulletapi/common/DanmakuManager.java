@@ -70,7 +70,7 @@ public class DanmakuManager {
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
                            String texture, int color, float size, String rendererType,
                            NBTTagCompound customData, ICollisionShape collisionShape,
-                           IBulletHitBehavior hitBehavior, Consumer<CollisionContext> onCollision,
+                           IBulletHitBehavior hitBehavior,
                            IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
                            IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
                            EntityLivingBase shooter, ItemStack shooterHeldItem,
@@ -79,7 +79,7 @@ public class DanmakuManager {
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, hitBehavior, onCollision, motionController, tickCallback, collisionFilter, onlyPlayer,
+                collisionShape, hitBehavior, motionController, tickCallback, collisionFilter, onlyPlayer,
                 shooter, shooterHeldItem, attackSourceInfo);
         getWorldMap(world).put(id, bullet);
         MinecraftForge.EVENT_BUS.post(new BulletSpawnEvent(world, createBulletSnapshot(bullet)));
@@ -138,7 +138,6 @@ public class DanmakuManager {
                           Vec3d startOffsetLocal,
                           int eventIntervalTicks,
                           ILaserHitBehavior hitBehavior,
-                          Consumer<LaserCollisionContext> onCollision,
                           ILaserCollisionFilter collisionFilter,
                           EntityLivingBase shooter, ItemStack shooterHeldItem,
                           AttackSourceInfo attackSourceInfo) {
@@ -164,7 +163,7 @@ public class DanmakuManager {
         int id = nextId.getAndIncrement();
         Laser laser = new Laser(id, start, direction, maxLength, thickness, damage,
                 life, penetrate, followShooter, onlyPlayer, blockStops, offset, offsetLocal,
-                eventIntervalTicks, hitBehavior, color, rendererType, customData, onCollision, collisionFilter,
+                eventIntervalTicks, hitBehavior, color, rendererType, customData, collisionFilter,
                 shooter, shooterHeldItem, attackSourceInfo);
         laser.setCurrentLength(computeLaserLength(laser, world));
         getLaserWorldMap(world).put(id, laser);
@@ -324,7 +323,7 @@ public class DanmakuManager {
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, bullet, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
         if (!eventBus.isCanceled()) {
-            bullet.onCollision(ctx);
+            bullet.handleHit(ctx);
             if (!ctx.canceled) {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }
@@ -448,7 +447,7 @@ public class DanmakuManager {
         LaserCollisionEvent eventBus = new LaserCollisionEvent(world, laser, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
         if (!eventBus.isCanceled()) {
-            laser.onCollision(ctx);
+            laser.handleHit(ctx);
             if (!ctx.canceled) {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }

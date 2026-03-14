@@ -6,7 +6,6 @@ import com.smd.bulletapi.api.preset.LaserPreset;
 import com.smd.bulletapi.api.preset.LaserPresetRegistry;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
-import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
@@ -14,8 +13,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-
-import java.util.function.Consumer;
 
 @PublicApi
 public class LaserBuilder {
@@ -37,7 +34,6 @@ public class LaserBuilder {
     private Vec3d startOffsetLocal = new Vec3d(0, 0, 0);
     private int eventIntervalTicks = 0;
     private ILaserHitBehavior hitBehavior;
-    private Consumer<LaserCollisionContext> onCollision;
     private ILaserCollisionFilter collisionFilter;
     private EntityLivingBase shooter;
     private ItemStack shooterHeldItem;
@@ -163,11 +159,6 @@ public class LaserBuilder {
         return this;
     }
 
-    public LaserBuilder onCollision(Consumer<LaserCollisionContext> callback) {
-        this.onCollision = callback;
-        return this;
-    }
-
     public LaserBuilder collisionFilter(ILaserCollisionFilter collisionFilter) {
         this.collisionFilter = collisionFilter;
         return this;
@@ -216,7 +207,6 @@ public class LaserBuilder {
                 startOffsetLocal,
                 eventIntervalTicks,
                 hitBehavior,
-                onCollision,
                 collisionFilter,
                 shooter,
                 shooterHeldItem,

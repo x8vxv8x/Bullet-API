@@ -14,7 +14,6 @@ import net.minecraft.world.World;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 @InternalApi
 public class Laser implements ILaserActor {
@@ -38,7 +37,6 @@ public class Laser implements ILaserActor {
     private final String rendererType;
     private NBTTagCompound customData;
     private final ILaserHitBehavior hitBehavior;
-    private final Consumer<LaserCollisionContext> onCollision;
     private final ILaserCollisionFilter collisionFilter;
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
@@ -52,7 +50,6 @@ public class Laser implements ILaserActor {
                  int eventIntervalTicks,
                  ILaserHitBehavior hitBehavior,
                  int color, String rendererType, NBTTagCompound customData,
-                 Consumer<LaserCollisionContext> onCollision,
                  ILaserCollisionFilter collisionFilter,
                  EntityLivingBase shooter, ItemStack shooterHeldItem,
                  AttackSourceInfo attackSourceInfo) {
@@ -75,7 +72,6 @@ public class Laser implements ILaserActor {
         this.rendererType = rendererType;
         this.customData = customData == null ? new NBTTagCompound() : customData;
         this.hitBehavior = hitBehavior;
-        this.onCollision = onCollision;
         this.collisionFilter = collisionFilter;
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
@@ -105,11 +101,10 @@ public class Laser implements ILaserActor {
         }
     }
 
-    public void onCollision(LaserCollisionContext context) {
+    public void handleHit(LaserCollisionContext context) {
         if (hitBehavior != null) {
             hitBehavior.onHit(context);
         }
-        if (onCollision != null) onCollision.accept(context);
     }
 
     public boolean canTrigger(EntityLivingBase entity, long worldTick) {

@@ -4,10 +4,10 @@ import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.builder.LaserBuilder;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
-import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.summon.SummonContext;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
+import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
@@ -26,21 +26,21 @@ public class ShootLaserPattern implements ISummonAttackPattern {
     private final int eventIntervalTicks;
     private final boolean penetrate;
     private final boolean blockStops;
-    private final Consumer<LaserCollisionContext> onCollision;
+    private final ILaserHitBehavior hitBehavior;
     private final Consumer<LaserBuilder> configureBuilder;
 
     public ShootLaserPattern(int cooldownTicks, int laserLife, double maxLength, float thickness,
                              float damage, int color, String rendererType, int eventIntervalTicks,
                              boolean penetrate, boolean blockStops,
-                             Consumer<LaserCollisionContext> onCollision) {
+                             ILaserHitBehavior hitBehavior) {
         this(cooldownTicks, laserLife, maxLength, thickness, damage, color, rendererType,
-                eventIntervalTicks, penetrate, blockStops, onCollision, null);
+                eventIntervalTicks, penetrate, blockStops, hitBehavior, null);
     }
 
     public ShootLaserPattern(int cooldownTicks, int laserLife, double maxLength, float thickness,
                              float damage, int color, String rendererType, int eventIntervalTicks,
                              boolean penetrate, boolean blockStops,
-                             Consumer<LaserCollisionContext> onCollision,
+                             ILaserHitBehavior hitBehavior,
                              Consumer<LaserBuilder> configureBuilder) {
         this.cooldownTicks = cooldownTicks;
         this.laserLife = laserLife;
@@ -52,7 +52,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
         this.eventIntervalTicks = eventIntervalTicks;
         this.penetrate = penetrate;
         this.blockStops = blockStops;
-        this.onCollision = onCollision;
+        this.hitBehavior = hitBehavior;
         this.configureBuilder = configureBuilder;
     }
 
@@ -118,7 +118,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
                         context.summon.getId(),
                         context.summon.getDefinitionId()
                 ))
-                .onCollision(onCollision);
+                .hitBehavior(hitBehavior);
 
         if (configureBuilder != null) {
             configureBuilder.accept(builder);
@@ -137,7 +137,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
         context.summon.clearActiveLaserId();
     }
 
-    public static Consumer<LaserCollisionContext> soundOnHit(SoundEvent sound, float volume, float pitch) {
+    public static ILaserHitBehavior soundOnHit(SoundEvent sound, float volume, float pitch) {
         return ctx -> {
             ctx.damage = ctx.laser.getDamage();
             if (sound != null) {

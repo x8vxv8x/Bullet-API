@@ -8,7 +8,6 @@ import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
 import com.smd.bulletapi.spi.bullet.IBulletMotionController;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -38,7 +37,6 @@ public class Bullet implements IBulletActor {
     private NBTTagCompound customData;
     private ICollisionShape collisionShape;
     private IBulletHitBehavior hitBehavior;
-    private Consumer<CollisionContext> onCollision;
     private IBulletMotionController motionController;
     private Consumer<IBulletActor> tickCallback; // 新增：每 tick 回调
     private IBulletCollisionFilter collisionFilter;
@@ -49,7 +47,7 @@ public class Bullet implements IBulletActor {
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
                   NBTTagCompound customData, ICollisionShape collisionShape,
-                  IBulletHitBehavior hitBehavior, Consumer<CollisionContext> onCollision,
+                  IBulletHitBehavior hitBehavior,
                   IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
                   IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
                   EntityLivingBase shooter, ItemStack shooterHeldItem, AttackSourceInfo attackSourceInfo) {
@@ -71,7 +69,6 @@ public class Bullet implements IBulletActor {
         this.customData = customData == null ? new NBTTagCompound() : customData;
         this.collisionShape = collisionShape;
         this.hitBehavior = hitBehavior;
-        this.onCollision = onCollision;
         this.motionController = motionController;
         this.tickCallback = tickCallback;
         this.collisionFilter = collisionFilter;
@@ -89,12 +86,10 @@ public class Bullet implements IBulletActor {
             motionController.tick(world, this);
         }
 
-        // 调用自定义每 tick 回调（开发者可在此修改速度等）
         if (tickCallback != null) {
             tickCallback.accept(this);
         }
 
-        // 更新位置
         positionX += velocityX;
         positionY += velocityY;
         positionZ += velocityZ;
@@ -141,7 +136,6 @@ public class Bullet implements IBulletActor {
     public ICollisionShape getCollisionShape() { return collisionShape; }
     public boolean hasCollision() { return collisionShape != null; }
     public IBulletHitBehavior getHitBehavior() { return hitBehavior; }
-    public Consumer<CollisionContext> getOnCollision() { return onCollision; }
     public IBulletMotionController getMotionController() { return motionController; }
     public Consumer<IBulletActor> getTickCallback() { return tickCallback; }
     public void setTickCallback(Consumer<IBulletActor> tickCallback) { this.tickCallback = tickCallback; }
@@ -154,12 +148,9 @@ public class Bullet implements IBulletActor {
     /**
      * 优先使用该入口，以复用同一次碰撞链路中的 CollisionContext。
      */
-    public void onCollision(CollisionContext context) {
+    public void handleHit(CollisionContext context) {
         if (hitBehavior != null) {
             hitBehavior.onHit(context);
-        }
-        if (onCollision != null) {
-            onCollision.accept(context);
         }
     }
 }

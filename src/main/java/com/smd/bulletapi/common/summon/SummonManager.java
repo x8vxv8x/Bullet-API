@@ -371,7 +371,7 @@ public class SummonManager {
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, summon, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
         if (!eventBus.isCanceled()) {
-            summon.onCollision(ctx);
+            summon.handleHit(ctx);
             if (!ctx.canceled) {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }

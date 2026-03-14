@@ -6,7 +6,6 @@ import com.smd.bulletapi.api.preset.BulletPreset;
 import com.smd.bulletapi.api.preset.BulletPresetRegistry;
 import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
-import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
@@ -34,7 +33,6 @@ public class BulletBuilder {
     private final NBTTagCompound customData = new NBTTagCompound();
     private ICollisionShape collisionShape;
     private IBulletHitBehavior hitBehavior;
-    private Consumer<CollisionContext> onCollision;
     private IBulletMotionController motionController;
     private Consumer<IBulletActor> tickCallback;
     private IBulletCollisionFilter collisionFilter;
@@ -138,11 +136,6 @@ public class BulletBuilder {
         return this;
     }
 
-    public BulletBuilder onCollision(Consumer<CollisionContext> callback) {
-        this.onCollision = callback;
-        return this;
-    }
-
     public BulletBuilder motionController(IBulletMotionController motionController) {
         this.motionController = motionController;
         return this;
@@ -185,7 +178,7 @@ public class BulletBuilder {
         int id = DanmakuManager.getInstance().spawnBullet(
                 world, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
-                collisionShape, hitBehavior, onCollision, motionController, tickCallback, collisionFilter, onlyPlayer,
+                collisionShape, hitBehavior, motionController, tickCallback, collisionFilter, onlyPlayer,
                 shooter, shooterHeldItem, attackSourceInfo
         );
         return new BulletHandle(world, id);

@@ -6,12 +6,13 @@ import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.builder.BulletBuilder;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
-import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
 import com.smd.bulletapi.server.summon.SummonBullet;
+import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
+import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -82,7 +83,7 @@ public class TestEvent {
         float damage = 2.0F;
         ICollisionShape collisionShape = new SphereShape(8.0);
 
-        java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
+        IBulletHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.bullet.getDamage();
             EntityLivingBase shooter = ctx.shooter;
             if (shooter instanceof EntityPlayer) {
@@ -126,7 +127,7 @@ public class TestEvent {
                     .size(2.0f)
                     .rendererType("billboard")
                     .collisionShape(collisionShape)
-                    .onCollision(onCollision)
+                    .hitBehavior(hitBehavior)
                     .shooter(player)
                     .shooterHeldItem(player.getHeldItemMainhand())
                     .onlyPlayer(false)
@@ -148,7 +149,7 @@ public class TestEvent {
         double speed = 0.55;
         ICollisionShape collisionShape = new SphereShape(1.2);
 
-        java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
+        IBulletHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.bullet.getDamage();
             BulletApi.remove(ctx.world, ctx.bullet.getId());
         };
@@ -170,7 +171,7 @@ public class TestEvent {
                     .damage(damage)
                     .size(0.55f)
                     .collisionShape(collisionShape)
-                    .onCollision(onCollision)
+                    .hitBehavior(hitBehavior)
                     .shooter(player)
                     .shooterHeldItem(player.getHeldItemMainhand())
                     .onlyPlayer(false);
@@ -192,7 +193,7 @@ public class TestEvent {
     }
 
     private static void spawnLaserTest(EntityPlayer player) {
-        java.util.function.Consumer<LaserCollisionContext> onCollision = ctx -> {
+        ILaserHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.laser.getDamage();
             ctx.world.playSound(null, ctx.hitEntity.posX, ctx.hitEntity.posY, ctx.hitEntity.posZ,
                     SoundEvents.BLOCK_NOTE_HARP, SoundCategory.PLAYERS, 0.4F, 1.8F);
@@ -212,7 +213,7 @@ public class TestEvent {
                 .blockStops(true)
                 .rendererType("laser_blast")
                 .eventIntervalTicks(5)
-                .onCollision(onCollision)
+                .hitBehavior(hitBehavior)
                 .life(60)
                 .spawn();
 
@@ -222,7 +223,7 @@ public class TestEvent {
     }
 
     private static void spawnLaserBlastTest(EntityPlayer player) {
-        java.util.function.Consumer<LaserCollisionContext> onCollision = ctx -> {
+        ILaserHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.laser.getDamage();
             ctx.world.playSound(null, ctx.hitEntity.posX, ctx.hitEntity.posY, ctx.hitEntity.posZ,
                     SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.PLAYERS, 0.5F, 0.9F);
@@ -249,7 +250,7 @@ public class TestEvent {
                 .set("core_color", 0xFFFFFF)
                 .set("shell_color", 0x7FD7FF)
                 .set("shell_color_end", 0x5533FF)
-                .onCollision(onCollision)
+                .hitBehavior(hitBehavior)
                 .life(60)
                 .spawn();
 
@@ -259,7 +260,7 @@ public class TestEvent {
     }
 
     private static void spawnLaserPolyTest(EntityPlayer player) {
-        java.util.function.Consumer<LaserCollisionContext> onCollision = ctx -> {
+        ILaserHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.laser.getDamage();
         };
 
@@ -301,7 +302,7 @@ public class TestEvent {
                 .set("deco_scroll", 0.1f)
                 .set("deco_rot_speed", 0.2f)
                 .set("deco_color", 0x88CCFF)
-                .onCollision(onCollision)
+                .hitBehavior(hitBehavior)
                 .life(60)
                 .spawn();
 
