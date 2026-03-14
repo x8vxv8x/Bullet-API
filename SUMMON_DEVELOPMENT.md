@@ -68,7 +68,7 @@
 
 1. 继承 `AbstractSummonBlueprint`
 2. 在 `configure(...)` 里写默认模板
-3. 调 `BulletAPI.registerSummonBlueprint(...)` 或 `SummonRegistry.register(...)`
+3. 调 `SummonApi.registerBlueprint(...)` 或 `SummonRegistry.register(...)`
 
 如果多个召唤物类型有共同结构，可以继续继承更具体的蓝图基类，例如：
 
@@ -84,7 +84,7 @@
 示例：
 
 ```java
-BulletAPI.summon(world)
+SummonApi.builder(world)
     .owner(player)
     .definition(SummonPresetKeys.RAM_WISP)
     .slotCost(2)

@@ -1,6 +1,6 @@
 package com.smd.bulletapi.common.summon;
 
-import com.smd.bulletapi.common.summon.blueprint.AbstractSummonBlueprint;
+import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
 import com.smd.bulletapi.common.summon.blueprint.impl.FairyOrbBlueprint;
 import com.smd.bulletapi.common.summon.blueprint.impl.LaserEyeBlueprint;
 import com.smd.bulletapi.common.summon.blueprint.impl.RamWispBlueprint;

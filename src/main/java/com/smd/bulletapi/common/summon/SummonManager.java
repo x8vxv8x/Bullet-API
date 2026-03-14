@@ -1,6 +1,6 @@
 package com.smd.bulletapi.common.summon;
 
-import com.smd.bulletapi.BulletAPI;
+import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketSummon;
@@ -223,7 +223,7 @@ public class SummonManager {
     private void cleanupSummonActors(World world, SummonBullet summon) {
         if (world == null || summon == null) return;
         if (summon.hasActiveLaser()) {
-            BulletAPI.removeLaser(world, summon.getActiveLaserId());
+            LaserApi.remove(world, summon.getActiveLaserId());
             summon.clearActiveLaserId();
         }
     }

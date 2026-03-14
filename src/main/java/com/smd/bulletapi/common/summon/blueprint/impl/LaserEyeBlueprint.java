@@ -1,9 +1,9 @@
 package com.smd.bulletapi.common.summon.blueprint.impl;
 
+import com.smd.bulletapi.api.summon.AbstractOrbitingSummonBlueprint;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootLaserPattern;
-import com.smd.bulletapi.common.summon.blueprint.AbstractOrbitingSummonBlueprint;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.nbt.NBTTagCompound;
 

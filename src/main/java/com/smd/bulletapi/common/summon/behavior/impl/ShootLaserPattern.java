@@ -1,6 +1,7 @@
 package com.smd.bulletapi.common.summon.behavior.impl;
 
-import com.smd.bulletapi.BulletAPI;
+import com.smd.bulletapi.api.LaserApi;
+import com.smd.bulletapi.api.builder.LaserBuilder;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.LaserCollisionContext;
@@ -26,7 +27,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
     private final boolean penetrate;
     private final boolean blockStops;
     private final Consumer<LaserCollisionContext> onCollision;
-    private final Consumer<BulletAPI.LaserBuilder> configureBuilder;
+    private final Consumer<LaserBuilder> configureBuilder;
 
     public ShootLaserPattern(int cooldownTicks, int laserLife, double maxLength, float thickness,
                              float damage, int color, String rendererType, int eventIntervalTicks,
@@ -40,7 +41,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
                              float damage, int color, String rendererType, int eventIntervalTicks,
                              boolean penetrate, boolean blockStops,
                              Consumer<LaserCollisionContext> onCollision,
-                             Consumer<BulletAPI.LaserBuilder> configureBuilder) {
+                             Consumer<LaserBuilder> configureBuilder) {
         this.cooldownTicks = cooldownTicks;
         this.laserLife = laserLife;
         this.maxLength = maxLength;
@@ -98,7 +99,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
 
         if (!context.summon.canAttack()) return;
 
-        BulletAPI.LaserBuilder builder = BulletAPI.laser(context.world)
+        LaserBuilder builder = LaserApi.builder(context.world)
                 .start(start)
                 .direction(normalizedDirection)
                 .followShooter(false)
@@ -132,7 +133,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
 
     private void stopActiveLaser(SummonContext context) {
         if (!context.summon.hasActiveLaser()) return;
-        BulletAPI.removeLaser(context.world, context.summon.getActiveLaserId());
+        LaserApi.remove(context.world, context.summon.getActiveLaserId());
         context.summon.clearActiveLaserId();
     }
 

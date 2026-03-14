@@ -1,4 +1,4 @@
-package com.smd.bulletapi.common.summon.blueprint;
+package com.smd.bulletapi.api.summon;
 
 import com.smd.bulletapi.common.summon.SummonDefinition;
 

@@ -1,6 +1,6 @@
 package com.smd.bulletapi.common.summon.behavior.impl;
 
-import com.smd.bulletapi.BulletAPI;
+import com.smd.bulletapi.api.BulletApi;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.SphereShape;
@@ -44,7 +44,7 @@ public class ShootBulletPattern implements ISummonAttackPattern {
         Vec3d direction = targetPos.subtract(spawnPos);
         if (direction.lengthSquared() < 1.0E-6) return;
 
-        BulletAPI.bullet(context.world)
+        BulletApi.builder(context.world)
                 .position(spawnPos)
                 .velocity(direction.normalize().scale(bulletSpeed))
                 .life(bulletLife)
@@ -68,6 +68,6 @@ public class ShootBulletPattern implements ISummonAttackPattern {
     }
 
     private void onBulletCollision(CollisionContext ctx) {
-        BulletAPI.removeBullet(ctx.world, ctx.bullet.getId());
+        BulletApi.remove(ctx.world, ctx.bullet.getId());
     }
 }

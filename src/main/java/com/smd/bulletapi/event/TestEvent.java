@@ -1,6 +1,9 @@
 package com.smd.bulletapi.event;
 
-import com.smd.bulletapi.BulletAPI;
+import com.smd.bulletapi.api.BulletApi;
+import com.smd.bulletapi.api.LaserApi;
+import com.smd.bulletapi.api.SummonApi;
+import com.smd.bulletapi.api.builder.BulletBuilder;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.LaserCollisionContext;
@@ -33,7 +36,8 @@ public class TestEvent {
         EntityLivingBase victim = event.getEntityLiving();
 
         if (player.isSneaking() && player.isInWater()) {
-            //spawnLaserEyeTest(player);
+            spawnLaserEyeTest(player);
+        } else if (player.isSprinting() && player.isInWater()) {
             spawnRamWispTest(player);
         } else if (player.isSprinting()) {
             spawnFairyOrbTest(player);
@@ -95,7 +99,7 @@ public class TestEvent {
             ctx.world.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                     ctx.hitEntity.posX, ctx.hitEntity.posY + 0.5, ctx.hitEntity.posZ,
                     0, 0, 0);
-            BulletAPI.removeBullet(ctx.world, ctx.bullet.getId());
+            BulletApi.remove(ctx.world, ctx.bullet.getId());
         };
 
         Vec3d fixedCenter = player.getPositionVector().add(0, heightOffset, 0);
@@ -112,7 +116,7 @@ public class TestEvent {
             double speed = 0.8; // 速度大小，单位 block/tick
             Vec3d initialVel = toTarget.normalize().scale(speed);
 
-            BulletAPI.bullet(player.world)
+            BulletApi.builder(player.world)
                     .position(spawnPos)
                     .velocity(initialVel)
                     .life(lifeTime)
@@ -146,7 +150,7 @@ public class TestEvent {
 
         java.util.function.Consumer<CollisionContext> onCollision = ctx -> {
             ctx.damage = ctx.bullet.getDamage();
-            BulletAPI.removeBullet(ctx.world, ctx.bullet.getId());
+            BulletApi.remove(ctx.world, ctx.bullet.getId());
         };
 
         Vec3d fixedCenter = player.getPositionVector().add(0, heightOffset, 0);
@@ -159,7 +163,7 @@ public class TestEvent {
             Vec3d spawnPos = fixedCenter.add(dx, 0, dz);
             Vec3d velocity = targetPos.subtract(spawnPos).normalize().scale(speed);
 
-            BulletAPI.BulletBuilder builder = BulletAPI.bullet(player.world)
+            BulletBuilder builder = BulletApi.builder(player.world)
                     .position(spawnPos)
                     .velocity(velocity)
                     .life(lifeTime)
@@ -194,7 +198,7 @@ public class TestEvent {
                     SoundEvents.BLOCK_NOTE_HARP, SoundCategory.PLAYERS, 0.4F, 1.8F);
         };
 
-        int id = BulletAPI.laser(player.world)
+        int id = LaserApi.builder(player.world)
                 .shooter(player)
                 .shooterHeldItem(player.getHeldItemMainhand())
                 .followShooter(true)
@@ -224,7 +228,7 @@ public class TestEvent {
                     SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.PLAYERS, 0.5F, 0.9F);
         };
 
-        int id = BulletAPI.laser(player.world)
+        int id = LaserApi.builder(player.world)
                 .shooter(player)
                 .shooterHeldItem(player.getHeldItemMainhand())
                 .followShooter(true)
@@ -259,7 +263,7 @@ public class TestEvent {
             ctx.damage = ctx.laser.getDamage();
         };
 
-        int id = BulletAPI.laser(player.world)
+        int id = LaserApi.builder(player.world)
                 .shooter(player)
                 .shooterHeldItem(player.getHeldItemMainhand())
                 .followShooter(true)
@@ -308,11 +312,11 @@ public class TestEvent {
 
     private static void spawnFairyOrbTest(EntityPlayer player) {
         if (player.world.isRemote) return;
-        if (BulletAPI.getPlayerMaxSummonSlots(player) < 3) {
-            BulletAPI.setPlayerMaxSummonSlots(player, 3);
+        if (SummonApi.getPlayerMaxSlots(player) < 3) {
+            SummonApi.setPlayerMaxSlots(player, 3);
         }
 
-        int id = BulletAPI.summon(player.world)
+        int id = SummonApi.builder(player.world)
                 .owner(player)
                 .definition(SummonPresetKeys.FAIRY_ORB)
                 .spawn();
@@ -320,8 +324,8 @@ public class TestEvent {
         if (id < 0) {
             player.sendMessage(new TextComponentString(
                     String.format("§c[BulletAPI]§r 召唤失败，槽位不足：%d/%d",
-                            BulletAPI.getPlayerUsedSummonSlots(player),
-                            BulletAPI.getPlayerMaxSummonSlots(player))
+                            SummonApi.getPlayerUsedSlots(player),
+                            SummonApi.getPlayerMaxSlots(player))
             ));
             return;
         }
@@ -329,19 +333,19 @@ public class TestEvent {
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r fairy_orb 已召唤，id=%d，槽位 %d/%d，当前召唤物总数: §e%d",
                         id,
-                        BulletAPI.getPlayerUsedSummonSlots(player),
-                        BulletAPI.getPlayerMaxSummonSlots(player),
-                        BulletAPI.getSummonCount(player.world))
+                        SummonApi.getPlayerUsedSlots(player),
+                        SummonApi.getPlayerMaxSlots(player),
+                        SummonApi.getCount(player.world))
         ));
     }
 
     private static void spawnLaserEyeTest(EntityPlayer player) {
         if (player.world.isRemote) return;
-        if (BulletAPI.getPlayerMaxSummonSlots(player) < 8) {
-            BulletAPI.setPlayerMaxSummonSlots(player, 8);
+        if (SummonApi.getPlayerMaxSlots(player) < 8) {
+            SummonApi.setPlayerMaxSlots(player, 8);
         }
 
-        int id = BulletAPI.summon(player.world)
+        int id = SummonApi.builder(player.world)
                 .owner(player)
                 .definition(SummonPresetKeys.LASER_EYE)
                 .spawn();
@@ -349,8 +353,8 @@ public class TestEvent {
         if (id < 0) {
             player.sendMessage(new TextComponentString(
                     String.format("§c[BulletAPI]§r laser_eye 召唤失败，槽位不足：%d/%d",
-                            BulletAPI.getPlayerUsedSummonSlots(player),
-                            BulletAPI.getPlayerMaxSummonSlots(player))
+                            SummonApi.getPlayerUsedSlots(player),
+                            SummonApi.getPlayerMaxSlots(player))
             ));
             return;
         }
@@ -358,19 +362,19 @@ public class TestEvent {
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r laser_eye 已召唤，id=%d，占用 2 槽，当前槽位 %d/%d，召唤物总数: §e%d",
                         id,
-                        BulletAPI.getPlayerUsedSummonSlots(player),
-                        BulletAPI.getPlayerMaxSummonSlots(player),
-                        BulletAPI.getSummonCount(player.world))
+                        SummonApi.getPlayerUsedSlots(player),
+                        SummonApi.getPlayerMaxSlots(player),
+                        SummonApi.getCount(player.world))
         ));
     }
 
     private static void spawnRamWispTest(EntityPlayer player) {
         if (player.world.isRemote) return;
-        if (BulletAPI.getPlayerMaxSummonSlots(player) < 8) {
-            BulletAPI.setPlayerMaxSummonSlots(player, 8);
+        if (SummonApi.getPlayerMaxSlots(player) < 8) {
+            SummonApi.setPlayerMaxSlots(player, 8);
         }
 
-        int id = BulletAPI.summon(player.world)
+        int id = SummonApi.builder(player.world)
                 .owner(player)
                 .definition(SummonPresetKeys.RAM_WISP)
                 .spawn();
@@ -378,8 +382,8 @@ public class TestEvent {
         if (id < 0) {
             player.sendMessage(new TextComponentString(
                     String.format("§c[BulletAPI]§r ram_wisp 召唤失败，槽位不足：%d/%d",
-                            BulletAPI.getPlayerUsedSummonSlots(player),
-                            BulletAPI.getPlayerMaxSummonSlots(player))
+                            SummonApi.getPlayerUsedSlots(player),
+                            SummonApi.getPlayerMaxSlots(player))
             ));
             return;
         }
@@ -387,9 +391,9 @@ public class TestEvent {
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r ram_wisp 已召唤，id=%d，触发方式：冲刺且在水中，当前槽位 %d/%d，召唤物总数: §e%d",
                         id,
-                        BulletAPI.getPlayerUsedSummonSlots(player),
-                        BulletAPI.getPlayerMaxSummonSlots(player),
-                        BulletAPI.getSummonCount(player.world))
+                        SummonApi.getPlayerUsedSlots(player),
+                        SummonApi.getPlayerMaxSlots(player),
+                        SummonApi.getCount(player.world))
         ));
     }
 }

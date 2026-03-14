@@ -1,10 +1,10 @@
 package com.smd.bulletapi.common.summon.blueprint.impl;
 
 import com.smd.bulletapi.common.collision.SphereShape;
+import com.smd.bulletapi.api.summon.AbstractOrbitingSummonBlueprint;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootBulletPattern;
-import com.smd.bulletapi.common.summon.blueprint.AbstractOrbitingSummonBlueprint;
 import net.minecraft.nbt.NBTTagCompound;
 
 public class FairyOrbBlueprint extends AbstractOrbitingSummonBlueprint {

@@ -1,10 +1,10 @@
 package com.smd.bulletapi.common.summon.blueprint.impl;
 
 import com.smd.bulletapi.common.collision.SphereShape;
+import com.smd.bulletapi.api.summon.AbstractContactSummonBlueprint;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
-import com.smd.bulletapi.common.summon.blueprint.AbstractContactSummonBlueprint;
 import net.minecraft.nbt.NBTTagCompound;
 
 public class RamWispBlueprint extends AbstractContactSummonBlueprint {
