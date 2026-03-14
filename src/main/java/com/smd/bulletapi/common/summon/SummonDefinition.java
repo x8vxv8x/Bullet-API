@@ -37,6 +37,14 @@ public class SummonDefinition {
         this.id = id;
     }
 
+    public static Builder builder(String id) {
+        return new Builder(id);
+    }
+
+    public Builder toBuilder() {
+        return new Builder(this);
+    }
+
     public SummonDefinition copy() {
         SummonDefinition copy = new SummonDefinition(id);
         copy.life = life;
@@ -137,5 +145,191 @@ public class SummonDefinition {
     public SummonDefinition set(String key, boolean value) {
         customData.setBoolean(key, value);
         return this;
+    }
+
+    public static final class Builder {
+        private final SummonDefinition definition;
+
+        private Builder(String id) {
+            if (id == null || id.trim().isEmpty()) {
+                throw new IllegalArgumentException("Summon definition id must not be empty");
+            }
+            this.definition = new SummonDefinition(id);
+        }
+
+        private Builder(SummonDefinition source) {
+            if (source == null) {
+                throw new IllegalArgumentException("Source summon definition must not be null");
+            }
+            this.definition = source.copy();
+        }
+
+        public Builder life(int life) {
+            definition.life(life);
+            return this;
+        }
+
+        public Builder damage(float damage) {
+            definition.damage(damage);
+            return this;
+        }
+
+        public Builder slotCost(int slotCost) {
+            definition.slotCost(slotCost);
+            return this;
+        }
+
+        public Builder texture(String texture) {
+            definition.texture(texture);
+            return this;
+        }
+
+        public Builder color(int color) {
+            definition.color(color);
+            return this;
+        }
+
+        public Builder size(float size) {
+            definition.size(size);
+            return this;
+        }
+
+        public Builder rendererType(String rendererType) {
+            definition.rendererType(rendererType);
+            return this;
+        }
+
+        public Builder customData(NBTTagCompound customData) {
+            definition.customData(customData == null ? new NBTTagCompound() : customData.copy());
+            return this;
+        }
+
+        public Builder collisionShape(ICollisionShape collisionShape) {
+            definition.collisionShape(collisionShape);
+            return this;
+        }
+
+        public Builder followRange(double followRange) {
+            definition.followRange(followRange);
+            return this;
+        }
+
+        public Builder attackRange(double attackRange) {
+            definition.attackRange(attackRange);
+            return this;
+        }
+
+        public Builder leashRange(double leashRange) {
+            definition.leashRange(leashRange);
+            return this;
+        }
+
+        public Builder moveSpeed(double moveSpeed) {
+            definition.moveSpeed(moveSpeed);
+            return this;
+        }
+
+        public Builder acceleration(double acceleration) {
+            definition.acceleration(acceleration);
+            return this;
+        }
+
+        public Builder idleHeight(double idleHeight) {
+            definition.idleHeight(idleHeight);
+            return this;
+        }
+
+        public Builder idleRadius(double idleRadius) {
+            definition.idleRadius(idleRadius);
+            return this;
+        }
+
+        public Builder retargetIntervalTicks(int ticks) {
+            definition.retargetIntervalTicks(ticks);
+            return this;
+        }
+
+        public Builder syncIntervalTicks(int ticks) {
+            definition.syncIntervalTicks(ticks);
+            return this;
+        }
+
+        public Builder bodyCollisionIntervalTicks(int ticks) {
+            definition.bodyCollisionIntervalTicks(ticks);
+            return this;
+        }
+
+        public Builder targetSelector(ISummonTargetSelector selector) {
+            definition.targetSelector(selector);
+            return this;
+        }
+
+        public Builder moveController(ISummonMoveController controller) {
+            definition.moveController(controller);
+            return this;
+        }
+
+        public Builder attackPattern(ISummonAttackPattern pattern) {
+            definition.attackPattern(pattern);
+            return this;
+        }
+
+        public Builder formationStrategy(IFormationStrategy formationStrategy) {
+            definition.formationStrategy(formationStrategy);
+            return this;
+        }
+
+        public Builder set(String key, String value) {
+            definition.set(key, value);
+            return this;
+        }
+
+        public Builder set(String key, int value) {
+            definition.set(key, value);
+            return this;
+        }
+
+        public Builder set(String key, float value) {
+            definition.set(key, value);
+            return this;
+        }
+
+        public Builder set(String key, boolean value) {
+            definition.set(key, value);
+            return this;
+        }
+
+        public Builder copyFrom(SummonDefinition source) {
+            if (source == null) return this;
+            SummonDefinition copy = source.copy();
+            definition.life(copy.getLife());
+            definition.damage(copy.getDamage());
+            definition.slotCost(copy.getSlotCost());
+            definition.texture(copy.getTexture());
+            definition.color(copy.getColor());
+            definition.size(copy.getSize());
+            definition.rendererType(copy.getRendererType());
+            definition.customData(copy.getCustomData());
+            definition.collisionShape(copy.getCollisionShape());
+            definition.followRange(copy.getFollowRange());
+            definition.attackRange(copy.getAttackRange());
+            definition.leashRange(copy.getLeashRange());
+            definition.moveSpeed(copy.getMoveSpeed());
+            definition.acceleration(copy.getAcceleration());
+            definition.idleHeight(copy.getIdleHeight());
+            definition.idleRadius(copy.getIdleRadius());
+            definition.retargetIntervalTicks(copy.getRetargetIntervalTicks());
+            definition.syncIntervalTicks(copy.getSyncIntervalTicks());
+            definition.bodyCollisionIntervalTicks(copy.getBodyCollisionIntervalTicks());
+            definition.targetSelector(copy.getTargetSelector());
+            definition.moveController(copy.getMoveController());
+            definition.attackPattern(copy.getAttackPattern());
+            definition.formationStrategy(copy.getFormationStrategy());
+            return this;
+        }
+
+        public SummonDefinition build() {
+            return definition.copy();
+        }
     }
 }

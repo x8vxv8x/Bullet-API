@@ -8,6 +8,7 @@ import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonManager;
 import com.smd.bulletapi.common.summon.SummonRegistry;
+import com.smd.bulletapi.common.summon.blueprint.AbstractSummonBlueprint;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.proxy.CommonProxy;
 import com.smd.bulletapi.server.Bullet;
@@ -406,6 +407,17 @@ public class BulletAPI {
             return this;
         }
 
+        public SummonBuilder definition(AbstractSummonBlueprint blueprint) {
+            if (blueprint == null) {
+                this.definition = null;
+                this.definitionId = null;
+            } else {
+                this.definition = blueprint.createDefinition();
+                this.definitionId = blueprint.getId();
+            }
+            return this;
+        }
+
         private SummonDefinition resolveDefinition() {
             SummonDefinition resolved = definition == null
                     ? (definitionId == null ? null : SummonRegistry.get(definitionId))
@@ -582,6 +594,18 @@ public class BulletAPI {
 
     public static int getSummonCount(World world) {
         return SummonManager.getInstance().getSummonCount(world);
+    }
+
+    public static void registerSummonDefinition(SummonDefinition definition) {
+        SummonRegistry.register(definition);
+    }
+
+    public static void registerSummonBlueprint(AbstractSummonBlueprint blueprint) {
+        SummonRegistry.register(blueprint);
+    }
+
+    public static AbstractSummonBlueprint getSummonBlueprint(String id) {
+        return SummonRegistry.getBlueprint(id);
     }
 
     public static int getPlayerMaxSummonSlots(EntityPlayer player) {

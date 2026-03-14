@@ -7,6 +7,9 @@
 - `SummonDefinition`
   - 召唤物模板定义。
   - 负责描述槽位、外观、移动、碰撞、攻击方式等静态配置。
+- `AbstractSummonBlueprint`
+  - 召唤物蓝图基类。
+  - 推荐用于正式预设开发，通过继承类定义默认模板。
 - `SummonManager`
   - 召唤物运行时管理器。
   - 负责更新目标、移动、本体碰撞、攻击、同步、槽位回收。
@@ -52,6 +55,45 @@
   - 攻击模板，比如发子弹、发激光。
 - `formationStrategy`
   - 无目标时围绕主人的站位策略。
+
+## 当前推荐开发方式
+
+召唤系统现在支持两套入口：
+
+### 1. 蓝图继承类
+
+适合正式预设、长期维护内容。
+
+推荐流程：
+
+1. 继承 `AbstractSummonBlueprint`
+2. 在 `configure(...)` 里写默认模板
+3. 调 `BulletAPI.registerSummonBlueprint(...)` 或 `SummonRegistry.register(...)`
+
+如果多个召唤物类型有共同结构，可以继续继承更具体的蓝图基类，例如：
+
+- `AbstractOrbitingSummonBlueprint`
+- `AbstractContactSummonBlueprint`
+
+这样可以把公共默认行为抽到父类里。
+
+### 2. 链式覆写
+
+适合测试、变体、外部模组临时调整实例参数。
+
+示例：
+
+```java
+BulletAPI.summon(world)
+    .owner(player)
+    .definition(SummonPresetKeys.RAM_WISP)
+    .slotCost(2)
+    .damage(5.0f)
+    .moveSpeed(0.48)
+    .spawn();
+```
+
+这里的链式调用不是替代蓝图，而是对蓝图默认模板做生成时覆写。
 
 ## 运行流程
 
@@ -195,13 +237,15 @@
 ## 新增召唤物模板的推荐步骤
 
 1. 在 `SummonPresetKeys` 里加 key。
-2. 在 `SummonRegistry` 里注册 `SummonDefinition`。
-3. 选择合适的 `targetSelector`。
-4. 选择或新建 `moveController`。
-5. 如果本体要撞人，设置 `collisionShape` 和 `bodyCollisionIntervalTicks`。
-6. 如果要发弹幕或激光，配置 `attackPattern`。
-7. 在 `TestEvent` 里加测试触发。
-8. 如有需要，监听 `BulletCollisionEvent` 或 `LaserCollisionEvent` 做特殊效果。
+2. 新建一个蓝图类，继承 `AbstractSummonBlueprint` 或更具体的蓝图父类。
+3. 在蓝图类里配置默认模板。
+4. 在 `SummonRegistry.bootstrapDefaults()` 或外部初始化流程中注册蓝图。
+5. 选择合适的 `targetSelector`。
+6. 选择或新建 `moveController`。
+7. 如果本体要撞人，设置 `collisionShape` 和 `bodyCollisionIntervalTicks`。
+8. 如果要发弹幕或激光，配置 `attackPattern`。
+9. 在 `TestEvent` 里加测试触发。
+10. 如有需要，监听 `BulletCollisionEvent` 或 `LaserCollisionEvent` 做特殊效果。
 
 ## 各层职责建议
 
