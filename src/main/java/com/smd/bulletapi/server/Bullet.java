@@ -97,6 +97,16 @@ public class Bullet {
         this.velocityY = y;
         this.velocityZ = z;
     }
+    public void setPosition(Vec3d position) {
+        setPosition(position.x, position.y, position.z);
+    }
+    public void setPosition(double x, double y, double z) {
+        this.positionX = x;
+        this.positionY = y;
+        this.positionZ = z;
+    }
+    public void setLife(int life) { this.life = life; }
+    public void markDead() { this.dead = true; }
     public int getLife() { return life; }
     public float getDamage() { return damage; }
     public boolean isDead() { return dead; }

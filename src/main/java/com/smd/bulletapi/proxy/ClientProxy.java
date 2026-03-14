@@ -2,6 +2,7 @@ package com.smd.bulletapi.proxy;
 
 import com.smd.bulletapi.client.ClientDanmakuCache;
 import com.smd.bulletapi.client.ClientLaserCache;
+import com.smd.bulletapi.client.ClientSummonCache;
 import com.smd.bulletapi.client.RenderHandler;
 import com.smd.bulletapi.client.render.BillboardRenderer;
 import com.smd.bulletapi.client.render.LaserBeamRenderer;
@@ -30,6 +31,7 @@ public class ClientProxy extends CommonProxy {
 
         ClientDanmakuCache.INSTANCE = new ClientDanmakuCache(); // 注册客户端事件
         ClientLaserCache.INSTANCE = new ClientLaserCache();
+        ClientSummonCache.INSTANCE = new ClientSummonCache();
         MinecraftForge.EVENT_BUS.register(RenderHandler.class);
     }
 }

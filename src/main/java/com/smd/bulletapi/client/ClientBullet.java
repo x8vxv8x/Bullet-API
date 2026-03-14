@@ -87,6 +87,19 @@ public class ClientBullet {
 
     public int getId() { return id; }
     public boolean isDead() { return dead; }
+    public void applySnapshot(Vec3d position, Vec3d velocity, int life) {
+        this.prevPositionX = this.positionX;
+        this.prevPositionY = this.positionY;
+        this.prevPositionZ = this.positionZ;
+        this.positionX = position.x;
+        this.positionY = position.y;
+        this.positionZ = position.z;
+        this.velocityX = velocity.x;
+        this.velocityY = velocity.y;
+        this.velocityZ = velocity.z;
+        this.life = life;
+        this.dead = life <= 0;
+    }
     public void setVelocity(Vec3d velocity) {
         this.velocityX = velocity.x;
         this.velocityY = velocity.y;

@@ -23,9 +23,11 @@ public class RenderHandler {
     public static void onRenderWorldLast(RenderWorldLastEvent event) {
         ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
         ClientLaserCache laserCache = ClientLaserCache.INSTANCE;
+        ClientSummonCache summonCache = ClientSummonCache.INSTANCE;
         boolean hasBullets = cache != null && !cache.getBullets().isEmpty();
+        boolean hasSummons = summonCache != null && !summonCache.getSummons().isEmpty();
         boolean hasLasers = laserCache != null && !laserCache.getLasers().isEmpty();
-        if (!hasBullets && !hasLasers) return;
+        if (!hasBullets && !hasSummons && !hasLasers) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         float partialTicks = event.getPartialTicks();
@@ -35,14 +37,25 @@ public class RenderHandler {
         double viewY = mc.player.prevPosY + (mc.player.posY - mc.player.prevPosY) * partialTicks;
         double viewZ = mc.player.prevPosZ + (mc.player.posZ - mc.player.prevPosZ) * partialTicks;
 
-        if (hasBullets) {
+        if (hasBullets || hasSummons) {
             // 按渲染器分组，以便批量渲染
             RENDER_GROUPS.clear();
-            for (ClientBullet bullet : cache.getBullets().values()) {
-                if (bullet.isDead()) continue;
-                IBulletRenderer renderer = bullet.getRenderer();
-                if (renderer != null) {
-                    RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+            if (hasBullets) {
+                for (ClientBullet bullet : cache.getBullets().values()) {
+                    if (bullet.isDead()) continue;
+                    IBulletRenderer renderer = bullet.getRenderer();
+                    if (renderer != null) {
+                        RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                    }
+                }
+            }
+            if (hasSummons) {
+                for (ClientBullet bullet : summonCache.getSummons().values()) {
+                    if (bullet.isDead()) continue;
+                    IBulletRenderer renderer = bullet.getRenderer();
+                    if (renderer != null) {
+                        RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                    }
                 }
             }
         }
@@ -56,7 +69,7 @@ public class RenderHandler {
         GlStateManager.depthMask(false); // 允许透明叠加，根据需求可选
 
         // 遍历每个渲染器组（弹幕）
-        if (hasBullets) {
+        if (hasBullets || hasSummons) {
             for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : RENDER_GROUPS.entrySet()) {
                 IBulletRenderer renderer = entry.getKey();
                 List<ClientBullet> bullets = entry.getValue();

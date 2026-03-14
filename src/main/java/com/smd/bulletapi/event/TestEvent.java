@@ -6,6 +6,7 @@ import com.smd.bulletapi.common.LaserCollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
+import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -29,12 +30,12 @@ public class TestEvent {
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
         EntityLivingBase victim = event.getEntityLiving();
 
-        if (player.isSneaking() && player.isInWater()) {
+        if (player.isInWater()) {
+            spawnFairyOrbTest(player);
+        } else if (player.isSneaking() && player.isInWater()) {
             spawnLaserPolyTest(player);
         } else if (player.isSneaking()) {
             spawnModelTestBullets(player, victim);
-        } else if (player.isInWater()) {
-            spawnLaserTest(player);
         } else {
             spawnDefaultBillboardTest(player, victim);
         }
@@ -274,6 +275,35 @@ public class TestEvent {
 
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 多面体激光测试已触发，id=%d", id)
+        ));
+    }
+
+    private static void spawnFairyOrbTest(EntityPlayer player) {
+        if (player.world.isRemote) return;
+        if (BulletAPI.getPlayerMaxSummonSlots(player) < 3) {
+            BulletAPI.setPlayerMaxSummonSlots(player, 3);
+        }
+
+        int id = BulletAPI.summon(player.world)
+                .owner(player)
+                .definition(SummonPresetKeys.FAIRY_ORB)
+                .spawn();
+
+        if (id < 0) {
+            player.sendMessage(new TextComponentString(
+                    String.format("§c[BulletAPI]§r 召唤失败，槽位不足：%d/%d",
+                            BulletAPI.getPlayerUsedSummonSlots(player),
+                            BulletAPI.getPlayerMaxSummonSlots(player))
+            ));
+            return;
+        }
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r fairy_orb 已召唤，id=%d，槽位 %d/%d，当前召唤物总数: §e%d",
+                        id,
+                        BulletAPI.getPlayerUsedSummonSlots(player),
+                        BulletAPI.getPlayerMaxSummonSlots(player),
+                        BulletAPI.getSummonCount(player.world))
         ));
     }
 }
