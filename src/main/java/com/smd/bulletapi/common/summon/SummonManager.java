@@ -4,6 +4,7 @@ import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.snapshot.SummonSnapshot;
+import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
@@ -14,8 +15,10 @@ import com.smd.bulletapi.event.lifecycle.SummonTargetChangedEvent;
 import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketSummon;
 import com.smd.bulletapi.server.summon.SummonBullet;
+import com.smd.bulletapi.common.summon.behavior.ISummonCommandHandler;
 import com.smd.bulletapi.spi.combat.CombatRelation;
 import com.smd.bulletapi.spi.combat.CombatRelationResolverRegistry;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
@@ -29,6 +32,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensio
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,6 +51,7 @@ public class SummonManager {
     private static final double SNAPSHOT_VEL_EPS_SQ = 0.02D * 0.02D;
 
     private final Map<World, Map<Integer, SummonBullet>> worldSummons = new HashMap<>();
+    private final Map<World, Map<Integer, ArrayDeque<SummonCommand>>> worldCommandQueues = new HashMap<>();
     private final Map<UUID, LinkedHashSet<OwnedSummonRef>> ownerSummons = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1000000);
     private final SummonSlotManager slotManager = new SummonSlotManager();
@@ -109,6 +114,25 @@ public class SummonManager {
         if (map == null) return false;
         SummonBullet summon = map.get(id);
         return summon != null && !summon.isDead();
+    }
+
+    public boolean supportsCommand(World world, int id, String commandId) {
+        if (world == null || commandId == null || commandId.trim().isEmpty()) return false;
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return false;
+        if (isStandardCommand(commandId)) return true;
+        ISummonCommandHandler handler = summon.getDefinition().getCommandHandler();
+        return handler != null && handler.supportsCommand(commandId);
+    }
+
+    public boolean sendCommand(World world, int id, SummonCommand command) {
+        if (world == null || world.isRemote || command == null) return false;
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return false;
+        getCommandWorldMap(world)
+                .computeIfAbsent(id, ignored -> new ArrayDeque<>())
+                .add(command.copy());
+        return true;
     }
 
     public SummonSnapshot getSummonSnapshot(World world, int id) {
@@ -189,6 +213,12 @@ public class SummonManager {
             }
 
             SummonContext context = new SummonContext(this, event.world, summon, owner, summon.getDefinition(), worldTick, target);
+            if (!applyQueuedCommands(event.world, summon, context)) {
+                continue;
+            }
+            if (summon.isDead() || summonMap.get(summon.getId()) != summon) {
+                continue;
+            }
             if (summon.shouldRetarget() && summon.getDefinition().getTargetSelector() != null) {
                 context.setTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
                 summon.resetRetargetCooldown();
@@ -226,6 +256,7 @@ public class SummonManager {
 
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
+        worldCommandQueues.remove(event.getWorld());
         Map<Integer, SummonBullet> removed = worldSummons.remove(event.getWorld());
         if (removed == null) return;
         for (SummonBullet summon : removed.values()) {
@@ -238,6 +269,10 @@ public class SummonManager {
 
     private Map<Integer, SummonBullet> getWorldMap(World world) {
         return worldSummons.computeIfAbsent(world, ignored -> new HashMap<>());
+    }
+
+    private Map<Integer, ArrayDeque<SummonCommand>> getCommandWorldMap(World world) {
+        return worldCommandQueues.computeIfAbsent(world, ignored -> new HashMap<>());
     }
 
     private void sendSpawn(World world, SummonBullet summon) {
@@ -462,6 +497,108 @@ public class SummonManager {
         return worldTick - summon.getLastSyncWorldTick() >= maxSilentTicks;
     }
 
+    private SummonBullet getLiveSummon(World world, int id) {
+        Map<Integer, SummonBullet> map = worldSummons.get(world);
+        if (map == null) return null;
+        SummonBullet summon = map.get(id);
+        return summon == null || summon.isDead() ? null : summon;
+    }
+
+    private List<SummonCommand> drainCommands(World world, int summonId) {
+        Map<Integer, ArrayDeque<SummonCommand>> commandMap = worldCommandQueues.get(world);
+        if (commandMap == null) return Collections.emptyList();
+
+        ArrayDeque<SummonCommand> queue = commandMap.remove(summonId);
+        if (queue == null || queue.isEmpty()) {
+            if (commandMap.isEmpty()) {
+                worldCommandQueues.remove(world);
+            }
+            return Collections.emptyList();
+        }
+
+        List<SummonCommand> commands = new ArrayList<>(queue.size());
+        while (!queue.isEmpty()) {
+            commands.add(queue.removeFirst());
+        }
+        if (commandMap.isEmpty()) {
+            worldCommandQueues.remove(world);
+        }
+        return commands;
+    }
+
+    private boolean applyQueuedCommands(World world, SummonBullet summon, SummonContext context) {
+        List<SummonCommand> commands = drainCommands(world, summon.getId());
+        context.attachCommands(commands);
+        if (commands.isEmpty()) {
+            return true;
+        }
+
+        for (SummonCommand command : commands) {
+            if (!applyStandardCommand(world, summon, context, command)) {
+                return false;
+            }
+        }
+
+        ISummonCommandHandler handler = summon.getDefinition().getCommandHandler();
+        if (handler == null) {
+            return hasSummon(world, summon.getId());
+        }
+
+        for (SummonCommand command : commands) {
+            if (isStandardCommand(command.getCommandId())) continue;
+            if (!handler.supportsCommand(command.getCommandId())) continue;
+            handler.handleCommand(context, command);
+            if (summon.isDead() || getLiveSummon(world, summon.getId()) != summon) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean applyStandardCommand(World world, SummonBullet summon, SummonContext context, SummonCommand command) {
+        String commandId = command.getCommandId();
+        if (SummonCommand.CLEAR_TARGET.equals(commandId)) {
+            context.setTarget(null);
+            summon.resetRetargetCooldown();
+            return true;
+        }
+        if (SummonCommand.FORCE_RETARGET.equals(commandId)) {
+            if (summon.getDefinition().getTargetSelector() != null) {
+                context.setTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
+            } else {
+                context.setTarget(null);
+            }
+            summon.resetRetargetCooldown();
+            return true;
+        }
+        if (SummonCommand.FORCE_TARGET.equals(commandId)) {
+            int targetEntityId = command.getInt(SummonCommand.KEY_TARGET_ENTITY_ID, -1);
+            Entity entity = targetEntityId < 0 ? null : world.getEntityByID(targetEntityId);
+            context.setTarget(entity instanceof EntityLivingBase && !entity.isDead ? (EntityLivingBase) entity : null);
+            summon.resetRetargetCooldown();
+            return true;
+        }
+        if (SummonCommand.RETURN_TO_OWNER.equals(commandId)) {
+            context.setTarget(null);
+            summon.resetRetargetCooldown();
+            summon.setState(SummonState.RETURNING);
+            return true;
+        }
+        if (SummonCommand.DESPAWN.equals(commandId)) {
+            removeSummon(world, summon.getId(), LifecycleRemoveReason.API_REQUEST);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isStandardCommand(String commandId) {
+        return SummonCommand.CLEAR_TARGET.equals(commandId)
+                || SummonCommand.FORCE_RETARGET.equals(commandId)
+                || SummonCommand.FORCE_TARGET.equals(commandId)
+                || SummonCommand.RETURN_TO_OWNER.equals(commandId)
+                || SummonCommand.DESPAWN.equals(commandId);
+    }
+
     private void indexSummon(World world, SummonBullet summon) {
         if (world == null || summon == null) return;
         ownerSummons
@@ -471,6 +608,13 @@ public class SummonManager {
 
     private void deindexSummon(World world, SummonBullet summon) {
         if (world == null || summon == null) return;
+        Map<Integer, ArrayDeque<SummonCommand>> commandMap = worldCommandQueues.get(world);
+        if (commandMap != null) {
+            commandMap.remove(summon.getId());
+            if (commandMap.isEmpty()) {
+                worldCommandQueues.remove(world);
+            }
+        }
         LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(summon.getOwnerId());
         if (refs == null) return;
         refs.remove(new OwnedSummonRef(world, summon));

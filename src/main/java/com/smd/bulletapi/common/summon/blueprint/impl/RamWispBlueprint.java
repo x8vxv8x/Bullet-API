@@ -14,6 +14,7 @@ public class RamWispBlueprint extends AbstractContactSummonBlueprint {
 
     @Override
     protected void configure(SummonDefinition.Builder builder) {
+        RamStrikeMoveController controller = new RamStrikeMoveController();
         NBTTagCompound ramWispData = new NBTTagCompound();
         ramWispData.setFloat("scale", 0.72f);
 
@@ -36,6 +37,7 @@ public class RamWispBlueprint extends AbstractContactSummonBlueprint {
                 .syncIntervalTicks(1)
                 .bodyCollisionIntervalTicks(2)
                 .collisionShape(new SphereShape(0.28))
-                .moveController(new RamStrikeMoveController());
+                .moveController(controller)
+                .commandHandler(controller);
     }
 }

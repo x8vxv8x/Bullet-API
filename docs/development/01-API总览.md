@@ -1,52 +1,135 @@
 # API 总览
 
-## 对外公开入口
+## 先看什么
 
-当前推荐开发者只使用 `com.smd.bulletapi.api` 包下的公开 API。
+当前版本推荐附属 mod 作者按下面的顺序理解系统：
+
+1. `Public API`
+   - 直接调用，创建对象、查询状态、操作句柄
+2. `SPI`
+   - 自己实现接口，接入运行时行为
+3. `Event`
+   - 监听生命周期和碰撞事件，做跨系统联动
+4. `Internal`
+   - 只用于理解原理，不应依赖
+
+## Public API
+
+主入口类：
 
 - `BulletApi`
-  - 普通点弹幕入口
+  - 点弹幕创建、移除、改速度、查快照
 - `LaserApi`
-  - 激光入口
+  - 激光创建、移除、更新变换、查快照
 - `SummonApi`
-  - 召唤物入口
+  - 召唤物创建、移除、注册定义/蓝图、槽位操作
+- `BattlefieldQueryApi`
+  - 战场对象数量、槽位、快照查询
 
-对应 Builder：
+常用 Builder：
 
-- `com.smd.bulletapi.api.builder.BulletBuilder`
-- `com.smd.bulletapi.api.builder.LaserBuilder`
-- `com.smd.bulletapi.api.builder.SummonBuilder`
+- `BulletBuilder`
+- `LaserBuilder`
+- `SummonBuilder`
 
-召唤物蓝图基类：
+常用只读对象：
 
-- `com.smd.bulletapi.api.summon.AbstractSummonBlueprint`
-- `com.smd.bulletapi.api.summon.AbstractOrbitingSummonBlueprint`
-- `com.smd.bulletapi.api.summon.AbstractContactSummonBlueprint`
+- `BulletHandle`
+- `LaserHandle`
+- `SummonHandle`
+- `BulletSnapshot`
+- `LaserSnapshot`
+- `SummonSnapshot`
 
-## 包结构说明
+## SPI
 
-- `api`
-  - 公开开发入口
-- `common`
-  - 公共逻辑、管理器、定义、行为接口
-- `server`
-  - 服务端运行时对象
-- `client`
-  - 客户端缓存与渲染
-- `network`
-  - 内部同步包
+下面这些是附属 mod 可以主动实现的稳定接口：
 
-约定：
+### 点弹幕
 
-- `api` 是唯一推荐依赖的开发入口
-- `network` 属于内部实现，不建议业务逻辑直接调用
-- `client.render` 里的注册行为应只在客户端初始化阶段执行
+- `IBulletHitBehavior`
+  - 单颗弹幕命中时的本地命中逻辑
+- `IBulletMotionController`
+  - 单颗弹幕每 tick 运动控制
+- `IBulletCollisionFilter`
+  - 单颗弹幕命中前的过滤规则
+
+### 激光
+
+- `ILaserHitBehavior`
+  - 激光命中逻辑
+- `ILaserCollisionFilter`
+  - 激光命中过滤规则
+
+### 召唤物行为
+
+- `ISummonTargetSelector`
+- `ISummonMoveController`
+- `ISummonAttackPattern`
+- `IFormationStrategy`
+
+### 其他扩展
+
+- `ICombatRelationResolver`
+  - 跨系统阵营/友伤关系判断
+- `IBulletRenderer`
+- `ILaserRenderer`
+  - 客户端自定义渲染器
+- `BulletPreset`
+- `LaserPreset`
+- `AbstractSummonBlueprint`
+  - 定义可复用预设和蓝图
+
+## Event
+
+公开事件主要分三类：
+
+### 生命周期事件
+
+- `BulletSpawnEvent`
+- `BulletRemoveEvent`
+- `LaserSpawnEvent`
+- `LaserRemoveEvent`
+- `SummonSpawnEvent`
+- `SummonRemoveEvent`
+- `SummonStateChangedEvent`
+- `SummonTargetChangedEvent`
+- `SummonSlotChangedEvent`
+- `BulletPresetRegisteredEvent`
+- `LaserPresetRegisteredEvent`
+- `SummonDefinitionRegisteredEvent`
+
+### 碰撞事件
+
+- `BulletCollisionEvent`
+- `LaserCollisionEvent`
+
+### 什么时候该用事件
+
+- 你要做全局联动
+- 你要观察或拦截别的附属 mod 创建出来的对象
+- 你不想把逻辑绑死在某一个 builder 或某一个蓝图上
+
+## Internal
+
+以下内容即使可见，也不应该作为附属 mod 的稳定依赖：
+
+- `DanmakuManager`
+- `SummonManager`
+- `SummonRegistry`
+- `server.*`
+- `network.*`
+- `ClientDanmakuCache`
+- `ClientLaserCache`
+- `ClientSummonCache`
+- `SPacket*`
+- `PacketHandler`
 
 ## 三类核心对象
 
-### 1. 点弹幕
+### 点弹幕
 
-适合一次性投射物、模型弹、跟踪弹、纯碰撞弹。
+适合一次性投射物、模型弹、追踪弹、纯判定弹。
 
 入口：
 
@@ -54,9 +137,9 @@
 BulletApi.builder(world)
 ```
 
-### 2. 激光
+### 激光
 
-适合瞬时束、持续束、穿透束、跟随视线束。
+适合瞬发束、持续束、穿透束、跟随束。
 
 入口：
 
@@ -64,9 +147,9 @@ BulletApi.builder(world)
 LaserApi.builder(world)
 ```
 
-### 3. 召唤物
+### 召唤物
 
-适合持续存在、可追踪目标、可带碰撞或攻击模板的实体型弹幕。
+适合持续存在、会选目标、会移动、会执行攻击模板的运行时对象。
 
 入口：
 
@@ -74,13 +157,13 @@ LaserApi.builder(world)
 SummonApi.builder(world)
 ```
 
-## 服务端与客户端职责
+## 服务端权威
 
-BulletAPI 的核心原则是服务端权威。
+当前版本默认是服务端权威：
 
-- 生成、移除、移动、碰撞、伤害判定都在服务端
-- 客户端接收快照并负责表现
-- 一般开发不需要手动操作内部同步包
+- 生成、移除、命中、伤害都在服务端
+- 客户端负责缓存和表现
+- 附属 mod 一般不需要也不应该直接操作内部同步包
 
 ## 最小示例
 
@@ -115,40 +198,11 @@ SummonApi.builder(world)
     .spawn();
 ```
 
-## 常见开发路径
+## 阅读路径
 
-### 只做新弹幕
-
-看：
-
-- `02-点弹幕开发`
-
-### 只做新激光
-
-看：
-
-- `03-激光开发`
-
-### 做新召唤物
-
-看：
-
-- `04-召唤物开发`
-
-### 做新渲染表现
-
-看：
-
-- `05-渲染扩展`
-
-### 做新碰撞判定
-
-看：
-
-- `06-碰撞扩展`
-
-### 改同步结构
-
-看：
-
-- `07-网络同步与发包`
+- 只做点弹幕：看 `02-点弹幕开发`
+- 只做激光：看 `03-激光开发`
+- 只做召唤物：看 `04-召唤物开发`
+- 做客户端渲染：看 `05-渲染扩展`
+- 做判定和阵营规则：看 `06-碰撞扩展`
+- 想理解同步原理和内部边界：看 `07-网络同步与发包`

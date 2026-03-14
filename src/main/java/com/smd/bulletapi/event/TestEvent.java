@@ -1,16 +1,16 @@
 package com.smd.bulletapi.event;
 
+import com.smd.bulletapi.api.BattlefieldQueryApi;
 import com.smd.bulletapi.api.BulletApi;
 import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.builder.BulletBuilder;
+import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.common.CollisionContext;
-import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
-import com.smd.bulletapi.server.summon.SummonBullet;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
@@ -58,15 +58,18 @@ public class TestEvent {
 
         CollisionContext ctx = event.getContext();
         if (!ctx.isSummonBody()) return;
-        if (!(event.getBullet() instanceof SummonBullet)) return;
-
-        SummonBullet summon = (SummonBullet) event.getBullet();
-        if (!SummonPresetKeys.RAM_WISP.equals(summon.getDefinitionId())) return;
+        if (ctx.attackSource == null) return;
+        if (!SummonPresetKeys.RAM_WISP.equals(ctx.attackSource.getSummonDefinitionId())) return;
 
         EntityLivingBase hit = (EntityLivingBase) event.getHitEntity();
-        RamStrikeMoveController.notifyBodyCollision(summon, hit, event.getWorld().getTotalWorldTime());
+        int summonId = ctx.attackSource.getSummonId();
+        if (summonId >= 0 && SummonApi.supportsCommand(event.getWorld(), summonId, RamStrikeMoveController.COMMAND_BODY_HIT)) {
+            SummonApi.sendCommand(event.getWorld(), summonId,
+                    SummonCommand.of(RamStrikeMoveController.COMMAND_BODY_HIT)
+                            .withInt(RamStrikeMoveController.KEY_HIT_ENTITY_ID, hit.getEntityId()));
+        }
 
-        ctx.damage = Math.max(ctx.damage, summon.getDamage()) * 1.25f;
+        ctx.damage = Math.max(ctx.damage, event.getBullet().getDamage()) * 1.25f;
         event.getWorld().playSound(null, hit.posX, hit.posY, hit.posZ,
                 SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.45F, 1.35F);
         event.getWorld().spawnParticle(EnumParticleTypes.CRIT_MAGIC,
@@ -134,7 +137,7 @@ public class TestEvent {
                     .spawn();
         }
 
-        int totalBullets = DanmakuManager.getInstance().getBulletCount(player.world);
+        int totalBullets = BattlefieldQueryApi.getBulletCount(player.world);
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 已生成 %d 枚直线弹幕，当前世界弹幕总数: §e%d", count, totalBullets)
         ));
@@ -186,7 +189,7 @@ public class TestEvent {
             builder.spawn();
         }
 
-        int totalBullets = DanmakuManager.getInstance().getBulletCount(player.world);
+        int totalBullets = BattlefieldQueryApi.getBulletCount(player.world);
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 模型测试已触发（潜行模式），生成 %d 枚模型弹幕，当前总数: §e%d", count, totalBullets)
         ));
