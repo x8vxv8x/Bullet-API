@@ -1,11 +1,11 @@
 package com.smd.bulletapi.common.summon;
 
-import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.snapshot.SummonSnapshot;
 import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.common.CollisionContext;
+import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
 import com.smd.bulletapi.event.lifecycle.SummonRemoveEvent;
@@ -135,15 +135,119 @@ public class SummonManager {
     }
 
     public SummonSnapshot getSummonSnapshot(World world, int id) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null) return null;
-        SummonBullet summon = map.get(id);
+        SummonBullet summon = getLiveSummon(world, id);
         return summon == null ? null : createSummonSnapshot(summon);
     }
 
     public int getSummonCount(World world) {
         Map<Integer, SummonBullet> map = worldSummons.get(world);
-        return map == null ? 0 : map.size();
+        if (map == null) return 0;
+        int count = 0;
+        for (SummonBullet summon : map.values()) {
+            if (!summon.isDead()) count++;
+        }
+        return count;
+    }
+
+    public List<Integer> getSummonIds(World world) {
+        Map<Integer, SummonBullet> map = worldSummons.get(world);
+        if (map == null || map.isEmpty()) return Collections.emptyList();
+        List<Integer> ids = new ArrayList<>();
+        for (Map.Entry<Integer, SummonBullet> entry : map.entrySet()) {
+            if (!entry.getValue().isDead()) {
+                ids.add(entry.getKey());
+            }
+        }
+        return ids;
+    }
+
+    public List<SummonSnapshot> getSummonSnapshots(World world) {
+        Map<Integer, SummonBullet> map = worldSummons.get(world);
+        if (map == null || map.isEmpty()) return Collections.emptyList();
+        List<SummonSnapshot> snapshots = new ArrayList<>();
+        for (SummonBullet summon : map.values()) {
+            if (!summon.isDead()) {
+                snapshots.add(createSummonSnapshot(summon));
+            }
+        }
+        return snapshots;
+    }
+
+    public List<SummonSnapshot> getOwnedSummonSnapshots(World world, UUID ownerId) {
+        if (world == null || ownerId == null) return Collections.emptyList();
+        List<SummonBullet> owned = getOwnedSummons(ownerId);
+        if (owned.isEmpty()) return Collections.emptyList();
+        List<SummonSnapshot> snapshots = new ArrayList<>();
+        for (SummonBullet summon : owned) {
+            if (!summon.isDead() && getLiveSummon(world, summon.getId()) == summon) {
+                snapshots.add(createSummonSnapshot(summon));
+            }
+        }
+        return snapshots;
+    }
+
+    public void updateSummonPosition(World world, int id, Vec3d position) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return;
+        summon.setPosition(position);
+        syncSummon(world, summon, SPacketSummon.FLAG_POSITION);
+    }
+
+    public void updateSummonVelocity(World world, int id, Vec3d velocity) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return;
+        summon.setVelocity(velocity);
+        syncSummon(world, summon, SPacketSummon.FLAG_VELOCITY);
+    }
+
+    public void updateSummonMotion(World world, int id, Vec3d position, Vec3d velocity) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return;
+        summon.setPosition(position);
+        summon.setVelocity(velocity);
+        syncSummon(world, summon, SPacketSummon.FLAG_POSITION | SPacketSummon.FLAG_VELOCITY);
+    }
+
+    public void updateSummonLife(World world, int id, int life) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return;
+        summon.setLife(life);
+        if (life <= 0) {
+            removeSummon(world, id, LifecycleRemoveReason.API_REQUEST);
+            return;
+        }
+        syncSummon(world, summon, SPacketSummon.FLAG_LIFE);
+    }
+
+    public void updateSummonTarget(World world, int id, EntityLivingBase target) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null) return;
+        int previousTargetId = summon.getTargetEntityId();
+        summon.setTarget(target);
+        summon.resetRetargetCooldown();
+        if (previousTargetId != summon.getTargetEntityId()) {
+            MinecraftForge.EVENT_BUS.post(new SummonTargetChangedEvent(
+                    world,
+                    new SummonHandle(world, summon.getId()),
+                    previousTargetId,
+                    summon.getTargetEntityId()
+            ));
+        }
+    }
+
+    public void updateSummonState(World world, int id, SummonState state) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null || state == null) return;
+        SummonState previousState = summon.getState();
+        summon.setState(state);
+        if (previousState != state) {
+            MinecraftForge.EVENT_BUS.post(new SummonStateChangedEvent(
+                    world,
+                    new SummonHandle(world, summon.getId()),
+                    previousState,
+                    state
+            ));
+        }
     }
 
     public List<SummonBullet> getOwnedSummons(UUID ownerId) {
@@ -234,8 +338,9 @@ public class SummonManager {
             emitStateChanges(event.world, summon, previousState, previousTargetId);
 
             if (summon.shouldSync()) {
-                if (shouldSendSnapshot(summon, worldTick)) {
-                    sendSnapshot(event.world, summon);
+                int snapshotFlags = getSnapshotFlags(summon, worldTick);
+                if (snapshotFlags != 0) {
+                    sendSnapshot(event.world, summon, snapshotFlags);
                     summon.markSynced(worldTick);
                 }
                 summon.resetSyncCooldown();
@@ -289,12 +394,14 @@ public class SummonManager {
         ), world.provider.getDimension());
     }
 
-    private void sendSnapshot(World world, SummonBullet summon) {
+    private void sendSnapshot(World world, SummonBullet summon, int flags) {
+        if (flags == 0) return;
         PacketHandler.sendToDimension(SPacketSummon.createSnapshot(
                 summon.getId(),
-                summon.getPosition(),
-                summon.getVelocity(),
-                summon.getLife()
+                flags,
+                (flags & SPacketSummon.FLAG_POSITION) != 0 ? summon.getPosition() : null,
+                (flags & SPacketSummon.FLAG_VELOCITY) != 0 ? summon.getVelocity() : null,
+                (flags & SPacketSummon.FLAG_LIFE) != 0 ? summon.getLife() : null
         ), world.provider.getDimension());
     }
 
@@ -332,7 +439,7 @@ public class SummonManager {
     private void cleanupSummonActors(World world, SummonBullet summon) {
         if (world == null || summon == null) return;
         if (summon.hasActiveLaser()) {
-            LaserApi.remove(world, summon.getActiveLaserId());
+            DanmakuManager.getInstance().removeLaser(world, summon.getActiveLaserId());
             summon.clearActiveLaserId();
         }
     }
@@ -471,10 +578,6 @@ public class SummonManager {
                 summon.getVelocity(),
                 summon.getLife(),
                 summon.getDamage(),
-                summon.getColor(),
-                summon.getSize(),
-                summon.getRendererType(),
-                summon.getCustomData(),
                 summon.getState(),
                 summon.getTargetEntityId(),
                 summon.getSlotCost(),
@@ -482,18 +585,29 @@ public class SummonManager {
         );
     }
 
-    private boolean shouldSendSnapshot(SummonBullet summon, long worldTick) {
+    private int getSnapshotFlags(SummonBullet summon, long worldTick) {
         Vec3d lastPos = summon.getLastSyncedPosition();
         Vec3d lastVel = summon.getLastSyncedVelocity();
         Vec3d pos = summon.getPosition();
         Vec3d vel = summon.getVelocity();
 
-        if (lastPos == null || lastVel == null) return true;
-        if (pos.squareDistanceTo(lastPos) >= SNAPSHOT_POS_EPS_SQ) return true;
-        if (vel.squareDistanceTo(lastVel) >= SNAPSHOT_VEL_EPS_SQ) return true;
+        if (lastPos == null || lastVel == null) {
+            return SPacketSummon.FLAG_POSITION | SPacketSummon.FLAG_VELOCITY | SPacketSummon.FLAG_LIFE;
+        }
+
+        int flags = 0;
+        if (pos.squareDistanceTo(lastPos) >= SNAPSHOT_POS_EPS_SQ) {
+            flags |= SPacketSummon.FLAG_POSITION;
+        }
+        if (vel.squareDistanceTo(lastVel) >= SNAPSHOT_VEL_EPS_SQ) {
+            flags |= SPacketSummon.FLAG_VELOCITY;
+        }
 
         int maxSilentTicks = Math.max(10, summon.getDefinition().getSyncIntervalTicks() * 5);
-        return worldTick - summon.getLastSyncWorldTick() >= maxSilentTicks;
+        if (worldTick - summon.getLastSyncWorldTick() >= maxSilentTicks) {
+            flags |= SPacketSummon.FLAG_LIFE;
+        }
+        return flags;
     }
 
     private SummonBullet getLiveSummon(World world, int id) {
@@ -501,6 +615,17 @@ public class SummonManager {
         if (map == null) return null;
         SummonBullet summon = map.get(id);
         return summon == null || summon.isDead() ? null : summon;
+    }
+
+    private void syncSummon(World world, SummonBullet summon, int flags) {
+        if (summon == null) return;
+        if (summon.isDead() || summon.getLife() <= 0) {
+            removeSummon(world, summon.getId(), LifecycleRemoveReason.API_REQUEST);
+            return;
+        }
+        sendSnapshot(world, summon, flags);
+        summon.markSynced(world.getTotalWorldTime());
+        summon.resetSyncCooldown();
     }
 
     private List<SummonCommand> drainCommands(World world, int summonId) {

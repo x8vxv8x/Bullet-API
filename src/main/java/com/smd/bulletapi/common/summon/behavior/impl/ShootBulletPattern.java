@@ -53,7 +53,7 @@ public class ShootBulletPattern implements ISummonAttackPattern {
                 .size(bulletSize)
                 .rendererType(bulletRendererType)
                 .collisionShape(new SphereShape(0.4))
-                .hitBehavior(ctx -> BulletApi.remove(ctx.world, ctx.bullet.getId()))
+                .hitBehavior(ctx -> BulletApi.handle(ctx.world, ctx.bullet.getId()).remove())
                 .shooter(context.owner)
                 .attackSourceInfo(AttackSourceInfo.summonChildBullet(
                         context.owner.getUniqueID(),

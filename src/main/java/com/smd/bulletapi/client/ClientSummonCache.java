@@ -25,8 +25,8 @@ public class ClientSummonCache extends AbstractClientBulletCache {
         spawnEntry(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
     }
 
-    public void updateSummon(int id, Vec3d position, Vec3d velocity, int life) {
-        applyEntrySnapshot(id, position, velocity, life);
+    public void updateSummon(int id, Vec3d position, Vec3d velocity, Integer life) {
+        applyEntryUpdate(id, position, velocity, life);
     }
 
     public void removeSummon(int id) {

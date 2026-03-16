@@ -66,6 +66,32 @@ public class ClientLaser {
         this.lastSnapshotTick = tick;
     }
 
+    public void updatePartial(long tick, Vec3d start, Vec3d direction, Double length) {
+        if (tick < lastSnapshotTick) {
+            return;
+        }
+        if (!initialized) {
+            update(tick,
+                    start == null ? new Vec3d(0, 0, 0) : start,
+                    direction == null ? new Vec3d(0, 0, 1) : direction,
+                    length == null ? 0.0D : length);
+            return;
+        }
+        if (start != null) {
+            this.prevStart = this.start;
+            this.start = start;
+        }
+        if (direction != null) {
+            this.prevDirection = this.direction;
+            this.direction = normalizeOrDefault(direction);
+        }
+        if (length != null) {
+            this.prevLength = this.length;
+            this.length = length;
+        }
+        this.lastSnapshotTick = tick;
+    }
+
     public void tick() {
         if (!initialized) return;
         prevStart = start;

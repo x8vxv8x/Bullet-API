@@ -133,7 +133,7 @@ public class ShootLaserPattern implements ISummonAttackPattern {
 
     private void stopActiveLaser(SummonContext context) {
         if (!context.summon.hasActiveLaser()) return;
-        LaserApi.remove(context.world, context.summon.getActiveLaserId());
+        LaserApi.handle(context.world, context.summon.getActiveLaserId()).remove();
         context.summon.clearActiveLaserId();
     }
 

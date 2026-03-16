@@ -1,8 +1,8 @@
 package com.smd.bulletapi.api.handle;
 
-import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.snapshot.LaserSnapshot;
+import com.smd.bulletapi.common.DanmakuManager;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -18,8 +18,10 @@ public final class LaserHandle {
 
     public World getWorld() { return world; }
     public int getId() { return id; }
-    public boolean exists() { return LaserApi.exists(world, id); }
-    public void remove() { LaserApi.remove(world, id); }
-    public boolean updateTransform(Vec3d start, Vec3d direction) { return LaserApi.updateTransform(world, id, start, direction); }
-    public LaserSnapshot snapshot() { return LaserApi.snapshot(world, id); }
+    public boolean exists() { return DanmakuManager.getInstance().hasLaser(world, id); }
+    public void remove() { DanmakuManager.getInstance().removeLaser(world, id); }
+    public boolean setTransform(Vec3d start, Vec3d direction) { return DanmakuManager.getInstance().updateLaserTransform(world, id, start, direction); }
+    public boolean setLength(double length) { return DanmakuManager.getInstance().updateLaserLength(world, id, length); }
+    public void setLife(int life) { DanmakuManager.getInstance().updateLaserLife(world, id, life); }
+    public LaserSnapshot snapshot() { return DanmakuManager.getInstance().getLaserSnapshot(world, id); }
 }

@@ -15,6 +15,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 @InternalApi
 public class SPacketSummon implements IMessage {
+    public static final int FLAG_POSITION = 1;
+    public static final int FLAG_VELOCITY = 1 << 1;
+    public static final int FLAG_LIFE = 1 << 2;
+
     public enum Operation {
         SPAWN, SNAPSHOT, REMOVE
     }
@@ -30,6 +34,7 @@ public class SPacketSummon implements IMessage {
     private float size;
     private String rendererType;
     private NBTTagCompound customData;
+    private int flags;
 
     public SPacketSummon() {}
 
@@ -58,15 +63,22 @@ public class SPacketSummon implements IMessage {
         return packet;
     }
 
-    public static SPacketSummon createSnapshot(int id, Vec3d pos, Vec3d vel, int life) {
+    public static SPacketSummon createSnapshot(int id, int flags, Vec3d pos, Vec3d vel, Integer life) {
         SPacketSummon packet = new SPacketSummon(Operation.SNAPSHOT, id);
-        packet.x = pos.x;
-        packet.y = pos.y;
-        packet.z = pos.z;
-        packet.vx = vel.x;
-        packet.vy = vel.y;
-        packet.vz = vel.z;
-        packet.life = life;
+        packet.flags = flags;
+        if ((flags & FLAG_POSITION) != 0 && pos != null) {
+            packet.x = pos.x;
+            packet.y = pos.y;
+            packet.z = pos.z;
+        }
+        if ((flags & FLAG_VELOCITY) != 0 && vel != null) {
+            packet.vx = vel.x;
+            packet.vy = vel.y;
+            packet.vz = vel.z;
+        }
+        if ((flags & FLAG_LIFE) != 0 && life != null) {
+            packet.life = life;
+        }
         return packet;
     }
 
@@ -95,13 +107,20 @@ public class SPacketSummon implements IMessage {
                 customData = ByteBufUtils.readTag(buf);
                 break;
             case SNAPSHOT:
-                x = buf.readDouble();
-                y = buf.readDouble();
-                z = buf.readDouble();
-                vx = buf.readDouble();
-                vy = buf.readDouble();
-                vz = buf.readDouble();
-                life = buf.readInt();
+                flags = buf.readInt();
+                if ((flags & FLAG_POSITION) != 0) {
+                    x = buf.readDouble();
+                    y = buf.readDouble();
+                    z = buf.readDouble();
+                }
+                if ((flags & FLAG_VELOCITY) != 0) {
+                    vx = buf.readDouble();
+                    vy = buf.readDouble();
+                    vz = buf.readDouble();
+                }
+                if ((flags & FLAG_LIFE) != 0) {
+                    life = buf.readInt();
+                }
                 break;
             case REMOVE:
                 break;
@@ -129,13 +148,20 @@ public class SPacketSummon implements IMessage {
                 ByteBufUtils.writeTag(buf, customData);
                 break;
             case SNAPSHOT:
-                buf.writeDouble(x);
-                buf.writeDouble(y);
-                buf.writeDouble(z);
-                buf.writeDouble(vx);
-                buf.writeDouble(vy);
-                buf.writeDouble(vz);
-                buf.writeInt(life);
+                buf.writeInt(flags);
+                if ((flags & FLAG_POSITION) != 0) {
+                    buf.writeDouble(x);
+                    buf.writeDouble(y);
+                    buf.writeDouble(z);
+                }
+                if ((flags & FLAG_VELOCITY) != 0) {
+                    buf.writeDouble(vx);
+                    buf.writeDouble(vy);
+                    buf.writeDouble(vz);
+                }
+                if ((flags & FLAG_LIFE) != 0) {
+                    buf.writeInt(life);
+                }
                 break;
             case REMOVE:
                 break;
@@ -171,9 +197,9 @@ public class SPacketSummon implements IMessage {
                     case SNAPSHOT:
                         cache.updateSummon(
                                 message.id,
-                                new Vec3d(message.x, message.y, message.z),
-                                new Vec3d(message.vx, message.vy, message.vz),
-                                message.life
+                                (message.flags & FLAG_POSITION) != 0 ? new Vec3d(message.x, message.y, message.z) : null,
+                                (message.flags & FLAG_VELOCITY) != 0 ? new Vec3d(message.vx, message.vy, message.vz) : null,
+                                (message.flags & FLAG_LIFE) != 0 ? Integer.valueOf(message.life) : null
                         );
                         break;
                     case REMOVE:

@@ -43,6 +43,13 @@ abstract class AbstractClientBulletCache {
         }
     }
 
+    protected final void applyEntryUpdate(int id, Vec3d position, Vec3d velocity, Integer life) {
+        ClientBullet entry = entries.get(id);
+        if (entry != null) {
+            entry.applyUpdate(position, velocity, life);
+        }
+    }
+
     protected final void removeEntry(int id) {
         ClientBullet entry = entries.remove(id);
         if (entry != null) {

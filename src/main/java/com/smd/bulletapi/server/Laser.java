@@ -155,6 +155,7 @@ public class Laser implements ILaserActor {
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
     public void markDead() { this.dead = true; }
     public int getLife() { return life; }
+    public void setLife(int life) { this.life = life; }
 
     private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {
         if (local == null) return new Vec3d(0, 0, 0);

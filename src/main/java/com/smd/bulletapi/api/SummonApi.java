@@ -3,8 +3,6 @@ package com.smd.bulletapi.api;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.builder.SummonBuilder;
 import com.smd.bulletapi.api.handle.SummonHandle;
-import com.smd.bulletapi.api.snapshot.SummonSnapshot;
-import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonManager;
@@ -22,14 +20,6 @@ public final class SummonApi {
 
     public static SummonHandle handle(World world, int id) {
         return new SummonHandle(world, id);
-    }
-
-    public static void remove(World world, int id) {
-        SummonManager.getInstance().removeSummon(world, id);
-    }
-
-    public static int getCount(World world) {
-        return SummonManager.getInstance().getSummonCount(world);
     }
 
     public static int getPlayerMaxSlots(EntityPlayer player) {
@@ -58,21 +48,5 @@ public final class SummonApi {
 
     public static SummonDefinition getDefinition(String id) {
         return SummonRegistry.get(id);
-    }
-
-    public static boolean exists(World world, int id) {
-        return SummonManager.getInstance().hasSummon(world, id);
-    }
-
-    public static boolean supportsCommand(World world, int id, String commandId) {
-        return SummonManager.getInstance().supportsCommand(world, id, commandId);
-    }
-
-    public static boolean sendCommand(World world, int id, SummonCommand command) {
-        return SummonManager.getInstance().sendCommand(world, id, command);
-    }
-
-    public static SummonSnapshot snapshot(World world, int id) {
-        return SummonManager.getInstance().getSummonSnapshot(world, id);
     }
 }

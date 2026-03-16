@@ -105,14 +105,32 @@ public class DanmakuManager {
     }
 
     public void updateBulletVelocity(World world, int id, Vec3d newVelocity) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map != null) {
-            Bullet bullet = map.get(id);
-            if (bullet != null) {
-                bullet.setVelocity(newVelocity);
-                PacketHandler.sendToDimension(SPacketDanmaku.createUpdate(id, newVelocity), world.provider.getDimension());
-            }
-        }
+        Bullet bullet = getLiveBullet(world, id);
+        if (bullet == null) return;
+        bullet.setVelocity(newVelocity);
+        syncBullet(world, bullet, SPacketDanmaku.FLAG_VELOCITY);
+    }
+
+    public void updateBulletPosition(World world, int id, Vec3d newPosition) {
+        Bullet bullet = getLiveBullet(world, id);
+        if (bullet == null) return;
+        bullet.setPosition(newPosition);
+        syncBullet(world, bullet, SPacketDanmaku.FLAG_POSITION);
+    }
+
+    public void updateBulletMotion(World world, int id, Vec3d newPosition, Vec3d newVelocity) {
+        Bullet bullet = getLiveBullet(world, id);
+        if (bullet == null) return;
+        bullet.setPosition(newPosition);
+        bullet.setVelocity(newVelocity);
+        syncBullet(world, bullet, SPacketDanmaku.FLAG_POSITION | SPacketDanmaku.FLAG_VELOCITY);
+    }
+
+    public void updateBulletLife(World world, int id, int life) {
+        Bullet bullet = getLiveBullet(world, id);
+        if (bullet == null) return;
+        bullet.setLife(life);
+        syncBullet(world, bullet, SPacketDanmaku.FLAG_LIFE);
     }
 
     public boolean hasBullet(World world, int id) {
@@ -123,9 +141,7 @@ public class DanmakuManager {
     }
 
     public BulletSnapshot getBulletSnapshot(World world, int id) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null) return null;
-        Bullet bullet = map.get(id);
+        Bullet bullet = getLiveBullet(world, id);
         return bullet == null ? null : createBulletSnapshot(bullet);
     }
 
@@ -198,30 +214,38 @@ public class DanmakuManager {
     }
 
     public LaserSnapshot getLaserSnapshot(World world, int id) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return null;
-        Laser laser = map.get(id);
+        Laser laser = getLiveLaser(world, id);
         return laser == null ? null : createLaserSnapshot(laser);
     }
 
     public boolean updateLaserTransform(World world, int id, Vec3d start, Vec3d direction) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return false;
-
-        Laser laser = map.get(id);
+        Laser laser = getLiveLaser(world, id);
         if (laser == null || laser.isDead()) return false;
 
         laser.setStart(start);
         laser.setDirection(direction);
         laser.setCurrentLength(computeLaserLength(laser, world));
-        PacketHandler.sendToDimension(SPacketLaser.createUpdate(
-                laser.getId(),
-                world.getTotalWorldTime(),
-                laser.getStart(),
-                laser.getDirection(),
-                laser.getCurrentLength()
-        ), world.provider.getDimension());
+        syncLaser(world, laser, SPacketLaser.FLAG_START | SPacketLaser.FLAG_DIRECTION | SPacketLaser.FLAG_LENGTH);
         return true;
+    }
+
+    public boolean updateLaserLength(World world, int id, double length) {
+        Laser laser = getLiveLaser(world, id);
+        if (laser == null) return false;
+        laser.setCurrentLength(Math.max(0.0D, Math.min(length, laser.getMaxLength())));
+        syncLaser(world, laser, SPacketLaser.FLAG_LENGTH);
+        return true;
+    }
+
+    public void updateLaserLife(World world, int id, int life) {
+        Laser laser = getLiveLaser(world, id);
+        if (laser == null) return;
+        laser.setLife(life);
+        if (life == 0) {
+            removeLaser(world, id, LifecycleRemoveReason.API_REQUEST);
+            return;
+        }
+        syncLaser(world, laser, 0);
     }
 
     @SubscribeEvent
@@ -231,7 +255,13 @@ public class DanmakuManager {
 
         Map<Integer, Laser> laserMap = worldLasers.get(world);
         if (laserMap != null) {
+            Map<Integer, Vec3d> previousLaserStarts = new HashMap<>();
+            Map<Integer, Vec3d> previousLaserDirections = new HashMap<>();
+            Map<Integer, Double> previousLaserLengths = new HashMap<>();
             for (Laser laser : laserMap.values()) {
+                previousLaserStarts.put(laser.getId(), laser.getStart());
+                previousLaserDirections.put(laser.getId(), laser.getDirection());
+                previousLaserLengths.put(laser.getId(), laser.getCurrentLength());
                 laser.update(world);
             }
 
@@ -240,13 +270,17 @@ public class DanmakuManager {
                 if (laser.isDead()) continue;
                 if (laserMap.get(laser.getId()) != laser) continue;
 
+                Vec3d previousStart = previousLaserStarts.get(laser.getId());
+                Vec3d previousDirection = previousLaserDirections.get(laser.getId());
+                double previousLength = previousLaserLengths.getOrDefault(laser.getId(), laser.getCurrentLength());
                 double length = computeLaserLength(laser, world);
                 laser.setCurrentLength(length);
                 handleLaserCollision(laser, world);
-
-                PacketHandler.sendToDimension(SPacketLaser.createUpdate(
-                        laser.getId(), world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength()),
-                        world.provider.getDimension());
+                int laserFlags = 0;
+                if (!sameVec(previousStart, laser.getStart())) laserFlags |= SPacketLaser.FLAG_START;
+                if (!sameVec(previousDirection, laser.getDirection())) laserFlags |= SPacketLaser.FLAG_DIRECTION;
+                if (!sameDouble(previousLength, laser.getCurrentLength())) laserFlags |= SPacketLaser.FLAG_LENGTH;
+                syncLaser(world, laser, laserFlags);
             }
 
             removeDeadLasers(world, laserMap, LifecycleRemoveReason.EXPIRED);
@@ -386,12 +420,70 @@ public class DanmakuManager {
 
     public int getBulletCount(World world) {
         Map<Integer, Bullet> map = worldBullets.get(world);
-        return map == null ? 0 : map.size();
+        if (map == null) return 0;
+        int count = 0;
+        for (Bullet bullet : map.values()) {
+            if (!bullet.isDead()) count++;
+        }
+        return count;
     }
 
     public int getLaserCount(World world) {
         Map<Integer, Laser> map = worldLasers.get(world);
-        return map == null ? 0 : map.size();
+        if (map == null) return 0;
+        int count = 0;
+        for (Laser laser : map.values()) {
+            if (!laser.isDead()) count++;
+        }
+        return count;
+    }
+
+    public List<Integer> getBulletIds(World world) {
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
+        List<Integer> ids = new ArrayList<>();
+        for (Map.Entry<Integer, Bullet> entry : map.entrySet()) {
+            if (!entry.getValue().isDead()) {
+                ids.add(entry.getKey());
+            }
+        }
+        return ids;
+    }
+
+    public List<Integer> getLaserIds(World world) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
+        List<Integer> ids = new ArrayList<>();
+        for (Map.Entry<Integer, Laser> entry : map.entrySet()) {
+            if (!entry.getValue().isDead()) {
+                ids.add(entry.getKey());
+            }
+        }
+        return ids;
+    }
+
+    public List<BulletSnapshot> getBulletSnapshots(World world) {
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
+        List<BulletSnapshot> snapshots = new ArrayList<>();
+        for (Bullet bullet : map.values()) {
+            if (!bullet.isDead()) {
+                snapshots.add(createBulletSnapshot(bullet));
+            }
+        }
+        return snapshots;
+    }
+
+    public List<LaserSnapshot> getLaserSnapshots(World world) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
+        List<LaserSnapshot> snapshots = new ArrayList<>();
+        for (Laser laser : map.values()) {
+            if (!laser.isDead()) {
+                snapshots.add(createLaserSnapshot(laser));
+            }
+        }
+        return snapshots;
     }
 
     private double computeLaserLength(Laser laser, World world) {
@@ -520,11 +612,6 @@ public class DanmakuManager {
                 bullet.getVelocity(),
                 bullet.getLife(),
                 bullet.getDamage(),
-                bullet.getTexture(),
-                bullet.getColor(),
-                bullet.getSize(),
-                bullet.getRendererType(),
-                bullet.getCustomData(),
                 bullet.isOnlyPlayer(),
                 bullet.getAttackSourceInfo()
         );
@@ -535,19 +622,78 @@ public class DanmakuManager {
                 laser.getId(),
                 laser.getStart(),
                 laser.getDirection(),
-                laser.getMaxLength(),
                 laser.getCurrentLength(),
                 laser.getThickness(),
                 laser.getLife(),
                 laser.getDamage(),
-                laser.getColor(),
-                laser.getRendererType(),
-                laser.getCustomData(),
                 laser.isOnlyPlayer(),
                 laser.isPenetrate(),
                 laser.isBlockStops(),
                 laser.getAttackSourceInfo()
         );
+    }
+
+    private Bullet getLiveBullet(World world, int id) {
+        Map<Integer, Bullet> map = worldBullets.get(world);
+        if (map == null) return null;
+        Bullet bullet = map.get(id);
+        return bullet == null || bullet.isDead() ? null : bullet;
+    }
+
+    private Laser getLiveLaser(World world, int id) {
+        Map<Integer, Laser> map = worldLasers.get(world);
+        if (map == null) return null;
+        Laser laser = map.get(id);
+        return laser == null || laser.isDead() ? null : laser;
+    }
+
+    private void syncBullet(World world, Bullet bullet, int flags) {
+        if (bullet == null) return;
+        if (bullet.isDead() || bullet.getLife() <= 0) {
+            removeBullet(world, bullet.getId(), LifecycleRemoveReason.API_REQUEST);
+            return;
+        }
+        if (flags == 0) return;
+        PacketHandler.sendToDimension(
+                SPacketDanmaku.createUpdate(
+                        bullet.getId(),
+                        flags,
+                        (flags & SPacketDanmaku.FLAG_POSITION) != 0 ? bullet.getPosition() : null,
+                        (flags & SPacketDanmaku.FLAG_VELOCITY) != 0 ? bullet.getVelocity() : null,
+                        (flags & SPacketDanmaku.FLAG_LIFE) != 0 ? bullet.getLife() : null
+                ),
+                world.provider.getDimension()
+        );
+    }
+
+    private void syncLaser(World world, Laser laser, int flags) {
+        if (laser == null) return;
+        if (laser.isDead() || laser.getLife() == 0) {
+            removeLaser(world, laser.getId(), LifecycleRemoveReason.API_REQUEST);
+            return;
+        }
+        if (flags == 0) return;
+        PacketHandler.sendToDimension(
+                SPacketLaser.createUpdate(
+                        laser.getId(),
+                        world.getTotalWorldTime(),
+                        flags,
+                        (flags & SPacketLaser.FLAG_START) != 0 ? laser.getStart() : null,
+                        (flags & SPacketLaser.FLAG_DIRECTION) != 0 ? laser.getDirection() : null,
+                        (flags & SPacketLaser.FLAG_LENGTH) != 0 ? laser.getCurrentLength() : null
+                ),
+                world.provider.getDimension()
+        );
+    }
+
+    private static boolean sameVec(Vec3d a, Vec3d b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        return a.squareDistanceTo(b) < 1.0E-8;
+    }
+
+    private static boolean sameDouble(double a, double b) {
+        return Math.abs(a - b) < 1.0E-8;
     }
 
     private AxisAlignedBB buildSegmentAabb(Vec3d start, Vec3d end, float thickness) {

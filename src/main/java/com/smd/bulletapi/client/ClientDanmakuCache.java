@@ -24,8 +24,8 @@ public class ClientDanmakuCache extends AbstractClientBulletCache {
         spawnEntry(id, position, velocity, maxLife, damage, texture, color, size, rendererType, customData);
     }
 
-    public void updateBulletVelocity(int id, Vec3d velocity) {
-        updateEntryVelocity(id, velocity);
+    public void updateBullet(int id, Vec3d position, Vec3d velocity, Integer life) {
+        applyEntryUpdate(id, position, velocity, life);
     }
 
     public void removeBullet(int id) {

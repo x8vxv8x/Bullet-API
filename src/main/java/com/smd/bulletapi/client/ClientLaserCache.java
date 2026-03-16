@@ -34,10 +34,10 @@ public class ClientLaserCache {
         lasers.put(id, laser);
     }
 
-    public void updateLaser(int id, long tick, Vec3d start, Vec3d direction, double length) {
+    public void updateLaser(int id, long tick, int flags, Vec3d start, Vec3d direction, Double length) {
         ClientLaser laser = lasers.get(id);
         if (laser != null) {
-            laser.update(tick, start, direction, length);
+            laser.updatePartial(tick, start, direction, length);
         }
     }
 

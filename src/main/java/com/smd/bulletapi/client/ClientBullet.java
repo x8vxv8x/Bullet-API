@@ -102,6 +102,25 @@ public class ClientBullet {
         this.life = life;
         this.dead = life <= 0;
     }
+    public void applyUpdate(Vec3d position, Vec3d velocity, Integer life) {
+        if (position != null) {
+            this.prevPositionX = this.positionX;
+            this.prevPositionY = this.positionY;
+            this.prevPositionZ = this.positionZ;
+            this.positionX = position.x;
+            this.positionY = position.y;
+            this.positionZ = position.z;
+        }
+        if (velocity != null) {
+            this.velocityX = velocity.x;
+            this.velocityY = velocity.y;
+            this.velocityZ = velocity.z;
+        }
+        if (life != null) {
+            this.life = life;
+            this.dead = life <= 0;
+        }
+    }
     public void setVelocity(Vec3d velocity) {
         this.velocityX = velocity.x;
         this.velocityY = velocity.y;

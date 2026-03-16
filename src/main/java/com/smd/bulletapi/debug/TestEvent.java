@@ -1,6 +1,6 @@
 package com.smd.bulletapi.debug;
 
-import com.smd.bulletapi.api.BattlefieldQueryApi;
+import com.smd.bulletapi.api.Battlefield;
 import com.smd.bulletapi.api.BulletApi;
 import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.SummonApi;
@@ -64,8 +64,8 @@ public class TestEvent {
 
         EntityLivingBase hit = (EntityLivingBase) event.getHitEntity();
         int summonId = ctx.attackSource.getSummonId();
-        if (summonId >= 0 && SummonApi.supportsCommand(event.getWorld(), summonId, RamStrikeMoveController.COMMAND_BODY_HIT)) {
-            SummonApi.sendCommand(event.getWorld(), summonId,
+        if (summonId >= 0 && SummonApi.handle(event.getWorld(), summonId).supportsCommand(RamStrikeMoveController.COMMAND_BODY_HIT)) {
+            SummonApi.handle(event.getWorld(), summonId).sendCommand(
                     SummonCommand.of(RamStrikeMoveController.COMMAND_BODY_HIT)
                             .withInt(RamStrikeMoveController.KEY_HIT_ENTITY_ID, hit.getEntityId()));
         }
@@ -104,7 +104,7 @@ public class TestEvent {
             ctx.world.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                     ctx.hitEntity.posX, ctx.hitEntity.posY + 0.5, ctx.hitEntity.posZ,
                     0, 0, 0);
-            BulletApi.remove(ctx.world, ctx.bullet.getId());
+            BulletApi.handle(ctx.world, ctx.bullet.getId()).remove();
         };
 
         Vec3d fixedCenter = player.getPositionVector().add(0, heightOffset, 0);
@@ -138,7 +138,7 @@ public class TestEvent {
                     .spawn();
         }
 
-        int totalBullets = BattlefieldQueryApi.getBulletCount(player.world);
+        int totalBullets = Battlefield.of(player.world).bullets().count();
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 已生成 %d 枚直线弹幕，当前世界弹幕总数: §e%d", count, totalBullets)
         ));
@@ -155,7 +155,7 @@ public class TestEvent {
 
         IBulletHitBehavior hitBehavior = ctx -> {
             ctx.damage = ctx.bullet.getDamage();
-            BulletApi.remove(ctx.world, ctx.bullet.getId());
+            BulletApi.handle(ctx.world, ctx.bullet.getId()).remove();
         };
 
         Vec3d fixedCenter = player.getPositionVector().add(0, heightOffset, 0);
@@ -190,7 +190,7 @@ public class TestEvent {
             builder.spawn();
         }
 
-        int totalBullets = BattlefieldQueryApi.getBulletCount(player.world);
+        int totalBullets = Battlefield.of(player.world).bullets().count();
         player.sendMessage(new TextComponentString(
                 String.format("§a[BulletAPI]§r 模型测试已触发（潜行模式），生成 %d 枚模型弹幕，当前总数: §e%d", count, totalBullets)
         ));
@@ -340,7 +340,7 @@ public class TestEvent {
                         id,
                         SummonApi.getPlayerUsedSlots(player),
                         SummonApi.getPlayerMaxSlots(player),
-                        SummonApi.getCount(player.world))
+                        Battlefield.of(player.world).summons().count())
         ));
     }
 
@@ -369,7 +369,7 @@ public class TestEvent {
                         id,
                         SummonApi.getPlayerUsedSlots(player),
                         SummonApi.getPlayerMaxSlots(player),
-                        SummonApi.getCount(player.world))
+                        Battlefield.of(player.world).summons().count())
         ));
     }
 
@@ -398,7 +398,7 @@ public class TestEvent {
                         id,
                         SummonApi.getPlayerUsedSlots(player),
                         SummonApi.getPlayerMaxSlots(player),
-                        SummonApi.getCount(player.world))
+                        Battlefield.of(player.world).summons().count())
         ));
     }
 }

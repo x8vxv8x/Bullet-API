@@ -15,6 +15,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 @InternalApi
 public class SPacketDanmaku implements IMessage {
+    public static final int FLAG_POSITION = 1;
+    public static final int FLAG_VELOCITY = 1 << 1;
+    public static final int FLAG_LIFE = 1 << 2;
+
     public enum Operation {
         SPAWN, UPDATE, REMOVE
     }
@@ -31,9 +35,7 @@ public class SPacketDanmaku implements IMessage {
     private float size;               // 新增
     private String rendererType;       // 新增
     private NBTTagCompound customData;
-    // UPDATE 数据
-    private double nvx, nvy, nvz;
-
+    private int flags;
     public SPacketDanmaku() {}
 
     private SPacketDanmaku(Operation op, int id) {
@@ -57,9 +59,18 @@ public class SPacketDanmaku implements IMessage {
         return p;
     }
 
-    public static SPacketDanmaku createUpdate(int id, Vec3d velocity) {
+    public static SPacketDanmaku createUpdate(int id, int flags, Vec3d position, Vec3d velocity, Integer life) {
         SPacketDanmaku p = new SPacketDanmaku(Operation.UPDATE, id);
-        p.nvx = velocity.x; p.nvy = velocity.y; p.nvz = velocity.z;
+        p.flags = flags;
+        if ((flags & FLAG_POSITION) != 0 && position != null) {
+            p.x = position.x; p.y = position.y; p.z = position.z;
+        }
+        if ((flags & FLAG_VELOCITY) != 0 && velocity != null) {
+            p.vx = velocity.x; p.vy = velocity.y; p.vz = velocity.z;
+        }
+        if ((flags & FLAG_LIFE) != 0 && life != null) {
+            p.life = life;
+        }
         return p;
     }
 
@@ -84,7 +95,16 @@ public class SPacketDanmaku implements IMessage {
                 customData = ByteBufUtils.readTag(buf);
                 break;
             case UPDATE:
-                nvx = buf.readDouble(); nvy = buf.readDouble(); nvz = buf.readDouble();
+                flags = buf.readInt();
+                if ((flags & FLAG_POSITION) != 0) {
+                    x = buf.readDouble(); y = buf.readDouble(); z = buf.readDouble();
+                }
+                if ((flags & FLAG_VELOCITY) != 0) {
+                    vx = buf.readDouble(); vy = buf.readDouble(); vz = buf.readDouble();
+                }
+                if ((flags & FLAG_LIFE) != 0) {
+                    life = buf.readInt();
+                }
                 break;
             case REMOVE:
                 break;
@@ -108,7 +128,16 @@ public class SPacketDanmaku implements IMessage {
                 ByteBufUtils.writeTag(buf, customData);
                 break;
             case UPDATE:
-                buf.writeDouble(nvx); buf.writeDouble(nvy); buf.writeDouble(nvz);
+                buf.writeInt(flags);
+                if ((flags & FLAG_POSITION) != 0) {
+                    buf.writeDouble(x); buf.writeDouble(y); buf.writeDouble(z);
+                }
+                if ((flags & FLAG_VELOCITY) != 0) {
+                    buf.writeDouble(vx); buf.writeDouble(vy); buf.writeDouble(vz);
+                }
+                if ((flags & FLAG_LIFE) != 0) {
+                    buf.writeInt(life);
+                }
                 break;
             case REMOVE:
                 break;
@@ -142,8 +171,12 @@ public class SPacketDanmaku implements IMessage {
                         );
                         break;
                     case UPDATE:
-                        cache.updateBulletVelocity(message.id,
-                                new Vec3d(message.nvx, message.nvy, message.nvz));
+                        cache.updateBullet(
+                                message.id,
+                                (message.flags & FLAG_POSITION) != 0 ? new Vec3d(message.x, message.y, message.z) : null,
+                                (message.flags & FLAG_VELOCITY) != 0 ? new Vec3d(message.vx, message.vy, message.vz) : null,
+                                (message.flags & FLAG_LIFE) != 0 ? Integer.valueOf(message.life) : null
+                        );
                         break;
                     case REMOVE:
                         cache.removeBullet(message.id);

@@ -14,6 +14,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 @InternalApi
 public class SPacketLaser implements IMessage {
+    public static final int FLAG_START = 1;
+    public static final int FLAG_DIRECTION = 1 << 1;
+    public static final int FLAG_LENGTH = 1 << 2;
+
     public enum Operation {
         SPAWN, UPDATE, REMOVE
     }
@@ -28,6 +32,7 @@ public class SPacketLaser implements IMessage {
     private int color;
     private String rendererType;
     private NBTTagCompound customData;
+    private int flags;
 
     public SPacketLaser() {}
 
@@ -51,12 +56,19 @@ public class SPacketLaser implements IMessage {
         return p;
     }
 
-    public static SPacketLaser createUpdate(int id, long tick, Vec3d start, Vec3d dir, double length) {
+    public static SPacketLaser createUpdate(int id, long tick, int flags, Vec3d start, Vec3d dir, Double length) {
         SPacketLaser p = new SPacketLaser(Operation.UPDATE, id);
         p.tick = tick;
-        p.sx = start.x; p.sy = start.y; p.sz = start.z;
-        p.dx = dir.x; p.dy = dir.y; p.dz = dir.z;
-        p.length = length;
+        p.flags = flags;
+        if ((flags & FLAG_START) != 0 && start != null) {
+            p.sx = start.x; p.sy = start.y; p.sz = start.z;
+        }
+        if ((flags & FLAG_DIRECTION) != 0 && dir != null) {
+            p.dx = dir.x; p.dy = dir.y; p.dz = dir.z;
+        }
+        if ((flags & FLAG_LENGTH) != 0 && length != null) {
+            p.length = length;
+        }
         return p;
     }
 
@@ -81,9 +93,16 @@ public class SPacketLaser implements IMessage {
                 break;
             case UPDATE:
                 tick = buf.readLong();
-                sx = buf.readDouble(); sy = buf.readDouble(); sz = buf.readDouble();
-                dx = buf.readDouble(); dy = buf.readDouble(); dz = buf.readDouble();
-                length = buf.readDouble();
+                flags = buf.readInt();
+                if ((flags & FLAG_START) != 0) {
+                    sx = buf.readDouble(); sy = buf.readDouble(); sz = buf.readDouble();
+                }
+                if ((flags & FLAG_DIRECTION) != 0) {
+                    dx = buf.readDouble(); dy = buf.readDouble(); dz = buf.readDouble();
+                }
+                if ((flags & FLAG_LENGTH) != 0) {
+                    length = buf.readDouble();
+                }
                 break;
             case REMOVE:
                 break;
@@ -107,9 +126,16 @@ public class SPacketLaser implements IMessage {
                 break;
             case UPDATE:
                 buf.writeLong(tick);
-                buf.writeDouble(sx); buf.writeDouble(sy); buf.writeDouble(sz);
-                buf.writeDouble(dx); buf.writeDouble(dy); buf.writeDouble(dz);
-                buf.writeDouble(length);
+                buf.writeInt(flags);
+                if ((flags & FLAG_START) != 0) {
+                    buf.writeDouble(sx); buf.writeDouble(sy); buf.writeDouble(sz);
+                }
+                if ((flags & FLAG_DIRECTION) != 0) {
+                    buf.writeDouble(dx); buf.writeDouble(dy); buf.writeDouble(dz);
+                }
+                if ((flags & FLAG_LENGTH) != 0) {
+                    buf.writeDouble(length);
+                }
                 break;
             case REMOVE:
                 break;
@@ -141,9 +167,10 @@ public class SPacketLaser implements IMessage {
                         cache.updateLaser(
                                 message.id,
                                 message.tick,
-                                new Vec3d(message.sx, message.sy, message.sz),
-                                new Vec3d(message.dx, message.dy, message.dz),
-                                message.length
+                                message.flags,
+                                (message.flags & FLAG_START) != 0 ? new Vec3d(message.sx, message.sy, message.sz) : null,
+                                (message.flags & FLAG_DIRECTION) != 0 ? new Vec3d(message.dx, message.dy, message.dz) : null,
+                                (message.flags & FLAG_LENGTH) != 0 ? Double.valueOf(message.length) : null
                         );
                         break;
                     case REMOVE:
