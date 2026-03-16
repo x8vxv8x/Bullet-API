@@ -18,13 +18,13 @@
 主入口类：
 
 - `BulletApi`
-  - 点弹幕创建、移除、改速度、查快照
+  - 点弹幕创建与句柄入口
 - `LaserApi`
-  - 激光创建、移除、更新变换、查快照
+  - 激光创建与句柄入口
 - `SummonApi`
-  - 召唤物创建、移除、注册定义/蓝图、槽位操作
-- `BattlefieldQueryApi`
-  - 战场对象数量、槽位、快照查询
+  - 召唤物创建、注册定义/蓝图、槽位操作
+- `Battlefield`
+  - 当前世界中的弹幕、激光、召唤物查询入口
 
 常用 Builder：
 
@@ -32,14 +32,41 @@
 - `LaserBuilder`
 - `SummonBuilder`
 
-常用只读对象：
+常用控制对象：
 
 - `BulletHandle`
 - `LaserHandle`
 - `SummonHandle`
+
+常用只读对象：
+
 - `BulletSnapshot`
 - `LaserSnapshot`
 - `SummonSnapshot`
+
+## 四层结构
+
+当前版本推荐按下面四层理解公开 API：
+
+### Builder
+
+- 负责生成对象
+- 例如 `BulletApi.builder(world)`、`LaserApi.builder(world)`、`SummonApi.builder(world)`
+
+### Handle
+
+- 负责控制单个对象
+- 例如移除、改位置、改速度、改寿命、改目标
+
+### Battlefield
+
+- 负责查询当前世界中的对象集合
+- 例如数量、id 列表、快照列表、按 id 取 `Handle` 或 `Snapshot`
+
+### Snapshot
+
+- 负责提供精简只读状态
+- 适合日志、调试、事件透传、跨系统读取
 
 ## SPI
 
@@ -157,12 +184,18 @@ LaserApi.builder(world)
 SummonApi.builder(world)
 ```
 
+查询：
+
+```java
+Battlefield.of(world).summons()
+```
+
 ## 服务端权威
 
 当前版本默认是服务端权威：
 
 - 生成、移除、命中、伤害都在服务端
-- 客户端负责缓存和表现
+- 客户端负责缓存、插值和表现
 - 附属 mod 一般不需要也不应该直接操作内部同步包
 
 ## 最小示例
@@ -195,7 +228,18 @@ LaserApi.builder(world)
 SummonApi.builder(world)
     .owner(player)
     .definition("bulletapi:ram_wisp")
+    .position(pos)
     .spawn();
+```
+
+### 查询世界中的对象
+
+```java
+Battlefield battlefield = Battlefield.of(world);
+
+int bulletCount = battlefield.bullets().count();
+SummonSnapshot summon = battlefield.summons().get(id);
+LaserHandle laser = battlefield.lasers().handle(id);
 ```
 
 ## 阅读路径
