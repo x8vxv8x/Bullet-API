@@ -1,6 +1,7 @@
 package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.client.ClientBullet;
+import com.smd.bulletapi.common.RenderStateData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -53,9 +54,10 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         double z = bullet.getRenderZ(partialTicks) - viewZ;
 
         NBTTagCompound data = bullet.getCustomData();
-        float scale = data.hasKey("scale") ? data.getFloat("scale") : bullet.getSize();
-        String rotMode = data.hasKey("rot_mode") ? data.getString("rot_mode") : "velocity";
-        int tint = data.hasKey("tint") ? data.getInteger("tint") : bullet.getColor();
+        String renderState = RenderStateData.getRenderState(data);
+        float scale = resolveFloat(data, "scale", renderState, bullet.getSize());
+        String rotMode = resolveString(data, "rot_mode", renderState, "velocity");
+        int tint = resolveInt(data, "tint", renderState, bullet.getColor());
         int argb = 0xFF000000 | (tint & 0x00FFFFFF);
 
         GlStateManager.pushMatrix();
@@ -118,5 +120,29 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         float pitch = (float) (-Math.atan2(vy, horizontal) * 180.0D / Math.PI);
         GlStateManager.rotate(yaw, 0F, 1F, 0F);
         GlStateManager.rotate(pitch, 1F, 0F, 0F);
+    }
+
+    private static float resolveFloat(NBTTagCompound data, String key, String renderState, float defaultValue) {
+        String scopedKey = RenderStateData.scopedKey(key, renderState);
+        if (data.hasKey(scopedKey)) {
+            return data.getFloat(scopedKey);
+        }
+        return data.hasKey(key) ? data.getFloat(key) : defaultValue;
+    }
+
+    private static int resolveInt(NBTTagCompound data, String key, String renderState, int defaultValue) {
+        String scopedKey = RenderStateData.scopedKey(key, renderState);
+        if (data.hasKey(scopedKey)) {
+            return data.getInteger(scopedKey);
+        }
+        return data.hasKey(key) ? data.getInteger(key) : defaultValue;
+    }
+
+    private static String resolveString(NBTTagCompound data, String key, String renderState, String defaultValue) {
+        String scopedKey = RenderStateData.scopedKey(key, renderState);
+        if (data.hasKey(scopedKey)) {
+            return data.getString(scopedKey);
+        }
+        return data.hasKey(key) ? data.getString(key) : defaultValue;
     }
 }

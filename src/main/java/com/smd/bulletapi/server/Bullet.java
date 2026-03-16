@@ -4,6 +4,7 @@ import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
+import com.smd.bulletapi.common.RenderStateData;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
@@ -131,11 +132,20 @@ public class Bullet implements IBulletActor {
     public float getDamage() { return damage; }
     public boolean isDead() { return dead; }
     public String getTexture() { return texture; }
+    public void setTexture(String texture) { this.texture = texture == null || texture.isEmpty() ? null : texture; }
     public int getColor() { return color; }
     public float getSize() { return size; }
     public String getRendererType() { return rendererType; }
+    public void setRendererType(String rendererType) { this.rendererType = rendererType == null || rendererType.isEmpty() ? null : rendererType; }
     public NBTTagCompound getCustomData() { return customData; }
     public void setCustomData(NBTTagCompound customData) { this.customData = customData; }
+    public String getRenderState() { return RenderStateData.getRenderState(customData); }
+    public void setRenderState(String renderState) {
+        if (customData == null) {
+            customData = new NBTTagCompound();
+        }
+        RenderStateData.setRenderState(customData, renderState);
+    }
     public ICollisionShape getCollisionShape() { return collisionShape; }
     public boolean hasCollision() { return collisionShape != null; }
     public IBulletHitBehavior getHitBehavior() { return hitBehavior; }

@@ -13,6 +13,7 @@ import com.smd.bulletapi.event.lifecycle.LaserRemoveEvent;
 import com.smd.bulletapi.event.lifecycle.LaserSpawnEvent;
 import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
 import com.smd.bulletapi.network.PacketHandler;
+import com.smd.bulletapi.network.SPacketBulletVisual;
 import com.smd.bulletapi.network.SPacketDanmaku;
 import com.smd.bulletapi.network.SPacketLaser;
 import com.smd.bulletapi.server.Bullet;
@@ -130,6 +131,33 @@ public class DanmakuManager {
         if (bullet == null) return;
         bullet.setLife(life);
         syncBullet(world, bullet, SPacketDanmaku.FLAG_LIFE);
+    }
+
+    public void updateBulletTexture(World world, int id, String texture) {
+        updateBulletVisual(world, id, texture, null, null, SPacketBulletVisual.FLAG_TEXTURE);
+    }
+
+    public void updateBulletRendererType(World world, int id, String rendererType) {
+        updateBulletVisual(world, id, null, rendererType, null, SPacketBulletVisual.FLAG_RENDERER);
+    }
+
+    public void updateBulletRenderState(World world, int id, String renderState) {
+        updateBulletVisual(world, id, null, null, renderState, SPacketBulletVisual.FLAG_RENDER_STATE);
+    }
+
+    public void updateBulletVisual(World world, int id, String texture, String rendererType, String renderState, int flags) {
+        Bullet bullet = getLiveBullet(world, id);
+        if (bullet == null || flags == 0) return;
+        if ((flags & SPacketBulletVisual.FLAG_TEXTURE) != 0) {
+            bullet.setTexture(texture);
+        }
+        if ((flags & SPacketBulletVisual.FLAG_RENDERER) != 0) {
+            bullet.setRendererType(rendererType);
+        }
+        if ((flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0) {
+            bullet.setRenderState(renderState);
+        }
+        syncBulletVisual(world, bullet, flags);
     }
 
     public boolean hasBullet(World world, int id) {
@@ -673,6 +701,22 @@ public class DanmakuManager {
                         (flags & SPacketLaser.FLAG_START) != 0 ? laser.getStart() : null,
                         (flags & SPacketLaser.FLAG_DIRECTION) != 0 ? laser.getDirection() : null,
                         (flags & SPacketLaser.FLAG_LENGTH) != 0 ? laser.getCurrentLength() : null
+                ),
+                world.provider.getDimension()
+        );
+    }
+
+    private void syncBulletVisual(World world, Bullet bullet, int flags) {
+        if (bullet == null || flags == 0) {
+            return;
+        }
+        PacketHandler.sendToDimension(
+                SPacketBulletVisual.createBullet(
+                        bullet.getId(),
+                        flags,
+                        (flags & SPacketBulletVisual.FLAG_TEXTURE) != 0 ? bullet.getTexture() : null,
+                        (flags & SPacketBulletVisual.FLAG_RENDERER) != 0 ? bullet.getRendererType() : null,
+                        (flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0 ? bullet.getRenderState() : null
                 ),
                 world.provider.getDimension()
         );

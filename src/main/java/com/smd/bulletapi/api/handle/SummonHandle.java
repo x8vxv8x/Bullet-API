@@ -27,6 +27,17 @@ public final class SummonHandle {
     public SummonHandle setVelocity(Vec3d velocity) { SummonManager.getInstance().updateSummonVelocity(world, id, velocity); return this; }
     public SummonHandle setMotion(Vec3d position, Vec3d velocity) { SummonManager.getInstance().updateSummonMotion(world, id, position, velocity); return this; }
     public SummonHandle setLife(int life) { SummonManager.getInstance().updateSummonLife(world, id, life); return this; }
+    public SummonHandle setTexture(String texture) { SummonManager.getInstance().updateSummonTexture(world, id, texture); return this; }
+    public SummonHandle setRendererType(String rendererType) { SummonManager.getInstance().updateSummonRendererType(world, id, rendererType); return this; }
+    public SummonHandle setRenderState(String renderState) { SummonManager.getInstance().updateSummonRenderState(world, id, renderState); return this; }
+    public SummonHandle setVisual(String texture, String rendererType, String renderState) {
+        int flags = com.smd.bulletapi.network.SPacketBulletVisual.FLAG_TEXTURE
+                | com.smd.bulletapi.network.SPacketBulletVisual.FLAG_RENDERER
+                | com.smd.bulletapi.network.SPacketBulletVisual.FLAG_RENDER_STATE;
+        SummonManager.getInstance().updateSummonVisual(world, id, texture, rendererType, renderState, flags);
+        return this;
+    }
+    public SummonHandle clearRenderState() { SummonManager.getInstance().updateSummonRenderState(world, id, null); return this; }
     public SummonHandle setTarget(EntityLivingBase target) { SummonManager.getInstance().updateSummonTarget(world, id, target); return this; }
     public SummonHandle clearTarget() { SummonManager.getInstance().updateSummonTarget(world, id, null); return this; }
     public SummonHandle retarget() { SummonManager.getInstance().retargetSummon(world, id); return this; }

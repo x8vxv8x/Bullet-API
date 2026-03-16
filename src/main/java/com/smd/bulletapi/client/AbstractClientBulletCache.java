@@ -1,6 +1,7 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.network.SPacketBulletVisual;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
@@ -53,6 +54,32 @@ abstract class AbstractClientBulletCache {
         ClientBullet entry = entries.get(id);
         if (entry != null) {
             entry.applyUpdate(position, velocity, life);
+        }
+    }
+
+    protected final void applyVisualUpdate(int id, int flags, ResourceLocation texture, String rendererType, String renderState) {
+        ClientBullet entry = entries.get(id);
+        if (entry == null) {
+            return;
+        }
+
+        if ((flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0) {
+            entry.setRenderState(renderState);
+        }
+
+        boolean rebuildRenderer = false;
+        if ((flags & SPacketBulletVisual.FLAG_TEXTURE) != 0) {
+            entry.setTexture(texture);
+            rebuildRenderer = true;
+        }
+        if ((flags & SPacketBulletVisual.FLAG_RENDERER) != 0) {
+            entry.setRendererType(rendererType);
+            rebuildRenderer = true;
+        }
+
+        if (rebuildRenderer) {
+            ClientRendererResolvers.deleteBulletRenderer(entry.getRenderer());
+            entry.setRenderer(ClientRendererResolvers.createBulletRenderer(entry.getTexture(), entry.getRendererType(), entry.getCustomData()));
         }
     }
 

@@ -5,9 +5,13 @@ import com.smd.bulletapi.api.BulletApi;
 import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.builder.BulletBuilder;
+import com.smd.bulletapi.api.handle.BulletHandle;
+import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.common.CollisionContext;
+import com.smd.bulletapi.common.RenderStateData;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
+import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
 import com.smd.bulletapi.event.BulletCollisionEvent;
@@ -22,11 +26,20 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 @Mod.EventBusSubscriber
 public class TestEvent {
+    private static final String TEST_TEXTURE = "bulletapi:textures/entity/bullet.png";
+    private static final String TEST_RENDER_STATE = "rage";
+    private static final List<VisualSyncTest> VISUAL_SYNC_TESTS = new ArrayList<>();
 
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
@@ -34,18 +47,9 @@ public class TestEvent {
         if (!"arrow".equals(event.getSource().getDamageType())) return;
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
-        EntityLivingBase victim = event.getEntityLiving();
 
-        if (player.isSneaking() && player.isInWater()) {
-            spawnLaserEyeTest(player);
-        } else if (player.isInWater()) {
-            spawnRamWispTest(player);
-        } else if (player.isSprinting()) {
-            spawnFairyOrbTest(player);
-        } else if (player.isSneaking()) {
-            spawnModelTestBullets(player, victim);
-        } else {
-            spawnDefaultBillboardTest(player, victim);
+       if (player.isSneaking() && player.isInWater()) {
+            spawnVisualSyncTest(player);
         }
     }
 
@@ -73,6 +77,39 @@ public class TestEvent {
         event.getWorld().spawnParticle(EnumParticleTypes.CRIT_MAGIC,
                 hit.posX, hit.posY + hit.height * 0.5D, hit.posZ,
                 0.0D, 0.02D, 0.0D);
+    }
+
+    @SubscribeEvent
+    public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (event.world.isRemote || event.phase != TickEvent.Phase.END || VISUAL_SYNC_TESTS.isEmpty()) {
+            return;
+        }
+
+        long worldTick = event.world.getTotalWorldTime();
+        Iterator<VisualSyncTest> iterator = VISUAL_SYNC_TESTS.iterator();
+        while (iterator.hasNext()) {
+            VisualSyncTest test = iterator.next();
+            if (test.world != event.world) {
+                continue;
+            }
+            if (!test.isAlive()) {
+                iterator.remove();
+                continue;
+            }
+            if (worldTick < test.nextToggleTick) {
+                continue;
+            }
+            test.toggle();
+            test.nextToggleTick = worldTick + 30L;
+        }
+    }
+
+    @SubscribeEvent
+    public static void onWorldUnload(WorldEvent.Unload event) {
+        if (VISUAL_SYNC_TESTS.isEmpty()) {
+            return;
+        }
+        VISUAL_SYNC_TESTS.removeIf(test -> test.world == event.getWorld());
     }
 
     private static void spawnDefaultBillboardTest(EntityPlayer player, EntityLivingBase victim) {
@@ -397,5 +434,106 @@ public class TestEvent {
                         SummonApi.getPlayerMaxSlots(player),
                         Battlefield.of(player.world).summons().count())
         ));
+    }
+
+    private static void spawnVisualSyncTest(EntityPlayer player) {
+        if (player.world.isRemote) return;
+
+        Vec3d basePos = player.getPositionVector().add(0, player.getEyeHeight() + 1.2D, 0);
+        BulletHandle bullet = BulletApi.builder(player.world)
+                .position(basePos.add(1.5D, 0.0D, 0.0D))
+                .velocity(new Vec3d(0, 0, 0))
+                .life(240)
+                .damage(0.0F)
+                .size(0.55f)
+                .rendererType("model_json")
+                .set("model", "minecraft:furnace")
+                .set("variant", "inventory")
+                .set("scale", 0.45f)
+                .set("scale_" + TEST_RENDER_STATE, 0.78f)
+                .set("tint", 0x66CCFF)
+                .set("tint_" + TEST_RENDER_STATE, 0xFF7744)
+                .set("rot_mode", "fixed")
+                .set("yaw", 45.0f)
+                .spawnHandle();
+
+        SummonDefinition definition = SummonDefinition.builder("debug_visual_sync")
+                .slotCost(0)
+                .life(240)
+                .damage(0.0f)
+                .texture(TEST_TEXTURE)
+                .color(0x99FFCC)
+                .size(1.2f)
+                .rendererType("billboard")
+                .syncIntervalTicks(2)
+                .set("model", "minecraft:furnace")
+                .set("variant", "inventory")
+                .set("scale", 0.48f)
+                .set("scale_" + TEST_RENDER_STATE, 0.9f)
+                .set("tint", 0x99FFCC)
+                .set("tint_" + TEST_RENDER_STATE, 0xFF4466)
+                .set(RenderStateData.KEY_RENDER_STATE, "")
+                .build();
+
+        SummonHandle summon = SummonApi.builder(player.world)
+                .owner(player)
+                .position(basePos.add(-1.5D, 0.0D, 0.0D))
+                .definition(definition)
+                .spawnHandle();
+
+        VISUAL_SYNC_TESTS.add(VisualSyncTest.forBullet(player.world, bullet.getId()));
+        VISUAL_SYNC_TESTS.add(VisualSyncTest.forSummon(player.world, summon.getId()));
+
+        player.sendMessage(new TextComponentString(
+                String.format("§a[BulletAPI]§r 视觉同步测试已触发，bullet=%d（只切 renderState），summon=%d（切 renderState + rendererType）",
+                        bullet.getId(), summon.getId())
+        ));
+    }
+
+    private static final class VisualSyncTest {
+        private final net.minecraft.world.World world;
+        private final int id;
+        private final boolean summon;
+        private long nextToggleTick;
+        private boolean altState;
+
+        private VisualSyncTest(net.minecraft.world.World world, int id, boolean summon) {
+            this.world = world;
+            this.id = id;
+            this.summon = summon;
+            this.nextToggleTick = world.getTotalWorldTime() + 30L;
+        }
+
+        private static VisualSyncTest forBullet(net.minecraft.world.World world, int id) {
+            return new VisualSyncTest(world, id, false);
+        }
+
+        private static VisualSyncTest forSummon(net.minecraft.world.World world, int id) {
+            return new VisualSyncTest(world, id, true);
+        }
+
+        private boolean isAlive() {
+            return summon ? SummonApi.handle(world, id).exists() : BulletApi.handle(world, id).exists();
+        }
+
+        private void toggle() {
+            altState = !altState;
+            if (summon) {
+                SummonHandle handle = SummonApi.handle(world, id);
+                if (altState) {
+                    handle.setVisual(null, "model_json", TEST_RENDER_STATE);
+                } else {
+                    handle.setVisual(TEST_TEXTURE, "billboard", null);
+                }
+                return;
+            }
+
+            BulletHandle handle = BulletApi.handle(world, id);
+            if (altState) {
+                handle.setRenderState(TEST_RENDER_STATE);
+            } else {
+                handle.clearRenderState();
+            }
+        }
     }
 }

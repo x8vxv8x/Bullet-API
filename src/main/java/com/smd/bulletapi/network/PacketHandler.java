@@ -19,6 +19,7 @@ public class PacketHandler {
         INSTANCE.registerMessage(SPacketDanmaku.Handler.class, SPacketDanmaku.class, id++, Side.CLIENT);
         INSTANCE.registerMessage(SPacketLaser.Handler.class, SPacketLaser.class, id++, Side.CLIENT);
         INSTANCE.registerMessage(SPacketSummon.Handler.class, SPacketSummon.class, id++, Side.CLIENT);
+        INSTANCE.registerMessage(SPacketBulletVisual.Handler.class, SPacketBulletVisual.class, id++, Side.CLIENT);
     }
 
     public static void sendToAll(IMessage message) {

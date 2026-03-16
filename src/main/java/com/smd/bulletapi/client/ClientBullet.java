@@ -2,6 +2,7 @@ package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.IBulletRenderer;
+import com.smd.bulletapi.common.RenderStateData;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.Vec3d;
@@ -128,10 +129,20 @@ public class ClientBullet {
     }
     public Vec3d getVelocity() { return new Vec3d(velocityX, velocityY, velocityZ); }
     public ResourceLocation getTexture() { return texture; }
+    public void setTexture(ResourceLocation texture) { this.texture = texture; }
     public int getColor() { return color; }
     public float getSize() { return size; }
     public String getRendererType() { return rendererType; }
+    public void setRendererType(String rendererType) { this.rendererType = rendererType == null || rendererType.isEmpty() ? null : rendererType; }
     public NBTTagCompound getCustomData() { return customData; }
+    public void setCustomData(NBTTagCompound customData) { this.customData = customData == null ? new NBTTagCompound() : customData; }
+    public String getRenderState() { return RenderStateData.getRenderState(customData); }
+    public void setRenderState(String renderState) {
+        if (customData == null) {
+            customData = new NBTTagCompound();
+        }
+        RenderStateData.setRenderState(customData, renderState);
+    }
     public IBulletRenderer getRenderer() { return renderer; }
     public void setRenderer(IBulletRenderer renderer) { this.renderer = renderer; }
 }

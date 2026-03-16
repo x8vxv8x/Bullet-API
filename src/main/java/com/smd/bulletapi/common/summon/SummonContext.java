@@ -1,5 +1,6 @@
 package com.smd.bulletapi.common.summon;
 
+import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.runtime.ISummonActor;
 import net.minecraft.entity.EntityLivingBase;
@@ -173,6 +174,22 @@ public class SummonContext {
         String value = runtime.getString(key);
         clearParam(key);
         return value;
+    }
+
+    public void setTexture(String texture) {
+        SummonApi.handle(world, summon.getId()).setTexture(texture);
+    }
+
+    public void setRendererType(String rendererType) {
+        SummonApi.handle(world, summon.getId()).setRendererType(rendererType);
+    }
+
+    public void setRenderState(String renderState) {
+        SummonApi.handle(world, summon.getId()).setRenderState(renderState);
+    }
+
+    public void setVisual(String texture, String rendererType, String renderState) {
+        SummonApi.handle(world, summon.getId()).setVisual(texture, rendererType, renderState);
     }
 
     private NBTTagCompound getParamContainer(String key) {

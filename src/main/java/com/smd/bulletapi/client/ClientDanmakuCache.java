@@ -28,6 +28,10 @@ public class ClientDanmakuCache extends AbstractClientBulletCache {
         applyEntryUpdate(id, position, velocity, life);
     }
 
+    public void updateVisual(int id, int flags, ResourceLocation texture, String rendererType, String renderState) {
+        applyVisualUpdate(id, flags, texture, rendererType, renderState);
+    }
+
     public void removeBullet(int id) {
         removeEntry(id);
     }

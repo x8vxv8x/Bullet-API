@@ -12,6 +12,7 @@ import com.smd.bulletapi.event.lifecycle.SummonSpawnEvent;
 import com.smd.bulletapi.event.lifecycle.SummonStateChangedEvent;
 import com.smd.bulletapi.event.lifecycle.SummonTargetChangedEvent;
 import com.smd.bulletapi.network.PacketHandler;
+import com.smd.bulletapi.network.SPacketBulletVisual;
 import com.smd.bulletapi.network.SPacketSummon;
 import com.smd.bulletapi.server.summon.SummonBullet;
 import com.smd.bulletapi.spi.combat.CombatRelation;
@@ -202,6 +203,33 @@ public class SummonManager {
             return;
         }
         syncSummon(world, summon, SPacketSummon.FLAG_LIFE);
+    }
+
+    public void updateSummonTexture(World world, int id, String texture) {
+        updateSummonVisual(world, id, texture, null, null, SPacketBulletVisual.FLAG_TEXTURE);
+    }
+
+    public void updateSummonRendererType(World world, int id, String rendererType) {
+        updateSummonVisual(world, id, null, rendererType, null, SPacketBulletVisual.FLAG_RENDERER);
+    }
+
+    public void updateSummonRenderState(World world, int id, String renderState) {
+        updateSummonVisual(world, id, null, null, renderState, SPacketBulletVisual.FLAG_RENDER_STATE);
+    }
+
+    public void updateSummonVisual(World world, int id, String texture, String rendererType, String renderState, int flags) {
+        SummonBullet summon = getLiveSummon(world, id);
+        if (summon == null || flags == 0) return;
+        if ((flags & SPacketBulletVisual.FLAG_TEXTURE) != 0) {
+            summon.setTexture(texture);
+        }
+        if ((flags & SPacketBulletVisual.FLAG_RENDERER) != 0) {
+            summon.setRendererType(rendererType);
+        }
+        if ((flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0) {
+            summon.setRenderState(renderState);
+        }
+        syncSummonVisual(world, summon, flags);
     }
 
     public void updateSummonTarget(World world, int id, EntityLivingBase target) {
@@ -690,6 +718,22 @@ public class SummonManager {
         sendSnapshot(world, summon, flags);
         summon.markSynced(world.getTotalWorldTime());
         summon.resetSyncCooldown();
+    }
+
+    private void syncSummonVisual(World world, SummonBullet summon, int flags) {
+        if (summon == null || flags == 0) {
+            return;
+        }
+        PacketHandler.sendToDimension(
+                SPacketBulletVisual.createSummon(
+                        summon.getId(),
+                        flags,
+                        (flags & SPacketBulletVisual.FLAG_TEXTURE) != 0 ? summon.getTexture() : null,
+                        (flags & SPacketBulletVisual.FLAG_RENDERER) != 0 ? summon.getRendererType() : null,
+                        (flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0 ? summon.getRenderState() : null
+                ),
+                world.provider.getDimension()
+        );
     }
 
     private void updateSummonRuntime(World world, int id, Consumer<NBTTagCompound> mutation) {

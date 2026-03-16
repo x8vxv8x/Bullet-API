@@ -1,5 +1,7 @@
 package com.smd.bulletapi.common;
 
+import com.smd.bulletapi.api.BulletApi;
+import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.runtime.IBulletActor;
 import net.minecraft.entity.Entity;
@@ -34,4 +36,32 @@ public class CollisionContext {
     public boolean isSummonBody() { return attackSource != null && attackSource.isSummonBody(); }
     public boolean isSummonChildBullet() { return attackSource != null && attackSource.isSummonChildBullet(); }
     public boolean isSummonChildLaser() { return attackSource != null && attackSource.isSummonChildLaser(); }
+    public void setTexture(String texture) {
+        if (isSummonBody() && attackSource != null && attackSource.getSummonId() >= 0) {
+            SummonApi.handle(world, attackSource.getSummonId()).setTexture(texture);
+            return;
+        }
+        BulletApi.handle(world, bullet.getId()).setTexture(texture);
+    }
+    public void setRendererType(String rendererType) {
+        if (isSummonBody() && attackSource != null && attackSource.getSummonId() >= 0) {
+            SummonApi.handle(world, attackSource.getSummonId()).setRendererType(rendererType);
+            return;
+        }
+        BulletApi.handle(world, bullet.getId()).setRendererType(rendererType);
+    }
+    public void setRenderState(String renderState) {
+        if (isSummonBody() && attackSource != null && attackSource.getSummonId() >= 0) {
+            SummonApi.handle(world, attackSource.getSummonId()).setRenderState(renderState);
+            return;
+        }
+        BulletApi.handle(world, bullet.getId()).setRenderState(renderState);
+    }
+    public void setVisual(String texture, String rendererType, String renderState) {
+        if (isSummonBody() && attackSource != null && attackSource.getSummonId() >= 0) {
+            SummonApi.handle(world, attackSource.getSummonId()).setVisual(texture, rendererType, renderState);
+            return;
+        }
+        BulletApi.handle(world, bullet.getId()).setVisual(texture, rendererType, renderState);
+    }
 }
