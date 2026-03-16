@@ -2,6 +2,8 @@ package com.smd.bulletapi.network;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientLaserCache;
+import com.smd.bulletapi.common.RenderDataRefs;
+import com.smd.bulletapi.server.Laser;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
@@ -32,6 +34,8 @@ public class SPacketLaser implements IMessage {
     private int color;
     private String rendererType;
     private NBTTagCompound customData;
+    private boolean usePresetRef;
+    private String presetId;
     private int flags;
 
     public SPacketLaser() {}
@@ -41,18 +45,35 @@ public class SPacketLaser implements IMessage {
         this.id = id;
     }
 
-    public static SPacketLaser createSpawn(int id, long tick, Vec3d start, Vec3d dir, double length,
-                                           float thickness, int color, String rendererType,
-                                           NBTTagCompound customData) {
-        SPacketLaser p = new SPacketLaser(Operation.SPAWN, id);
+    public static SPacketLaser createSpawn(Laser laser, long tick) {
+        SPacketLaser p = new SPacketLaser(Operation.SPAWN, laser.getId());
         p.tick = tick;
+        Vec3d start = laser.getStart();
+        Vec3d dir = laser.getDirection();
         p.sx = start.x; p.sy = start.y; p.sz = start.z;
         p.dx = dir.x; p.dy = dir.y; p.dz = dir.z;
-        p.length = length;
-        p.thickness = thickness;
-        p.color = color;
-        p.rendererType = rendererType;
-        p.customData = customData;
+        p.length = laser.getCurrentLength();
+
+        String renderPresetId = laser.getRenderPresetId();
+        RenderDataRefs.LaserRenderData actual = RenderDataRefs.laserFromRuntime(laser);
+        RenderDataRefs.LaserRenderData base = RenderDataRefs.laserFromPreset(renderPresetId);
+        if (renderPresetId != null && base != null) {
+            NBTTagCompound customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
+            p.usePresetRef = true;
+            p.presetId = renderPresetId;
+            p.flags = RenderDataRefs.laserDiffFlags(actual, base, customDataDiff);
+            if ((p.flags & RenderDataRefs.FLAG_THICKNESS) != 0) p.thickness = actual.thickness;
+            if ((p.flags & RenderDataRefs.FLAG_COLOR) != 0) p.color = actual.color;
+            if ((p.flags & RenderDataRefs.FLAG_RENDERER) != 0) p.rendererType = actual.rendererType;
+            if ((p.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
+                p.customData = customDataDiff;
+            }
+        } else {
+            p.thickness = actual.thickness;
+            p.color = actual.color;
+            p.rendererType = actual.rendererType;
+            p.customData = actual.customData;
+        }
         return p;
     }
 
@@ -86,10 +107,20 @@ public class SPacketLaser implements IMessage {
                 sx = buf.readDouble(); sy = buf.readDouble(); sz = buf.readDouble();
                 dx = buf.readDouble(); dy = buf.readDouble(); dz = buf.readDouble();
                 length = buf.readDouble();
-                thickness = buf.readFloat();
-                color = buf.readInt();
-                rendererType = ByteBufUtils.readUTF8String(buf);
-                customData = ByteBufUtils.readTag(buf);
+                usePresetRef = buf.readBoolean();
+                if (usePresetRef) {
+                    presetId = ByteBufUtils.readUTF8String(buf);
+                    flags = buf.readInt();
+                    if ((flags & RenderDataRefs.FLAG_THICKNESS) != 0) thickness = buf.readFloat();
+                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) color = buf.readInt();
+                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) rendererType = ByteBufUtils.readUTF8String(buf);
+                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) customData = ByteBufUtils.readTag(buf);
+                } else {
+                    thickness = buf.readFloat();
+                    color = buf.readInt();
+                    rendererType = ByteBufUtils.readUTF8String(buf);
+                    customData = ByteBufUtils.readTag(buf);
+                }
                 break;
             case UPDATE:
                 tick = buf.readLong();
@@ -119,10 +150,24 @@ public class SPacketLaser implements IMessage {
                 buf.writeDouble(sx); buf.writeDouble(sy); buf.writeDouble(sz);
                 buf.writeDouble(dx); buf.writeDouble(dy); buf.writeDouble(dz);
                 buf.writeDouble(length);
-                buf.writeFloat(thickness);
-                buf.writeInt(color);
-                ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
-                ByteBufUtils.writeTag(buf, customData);
+                buf.writeBoolean(usePresetRef);
+                if (usePresetRef) {
+                    ByteBufUtils.writeUTF8String(buf, presetId == null ? "" : presetId);
+                    buf.writeInt(flags);
+                    if ((flags & RenderDataRefs.FLAG_THICKNESS) != 0) buf.writeFloat(thickness);
+                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) buf.writeInt(color);
+                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) {
+                        ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
+                        ByteBufUtils.writeTag(buf, customData);
+                    }
+                } else {
+                    buf.writeFloat(thickness);
+                    buf.writeInt(color);
+                    ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
+                    ByteBufUtils.writeTag(buf, customData);
+                }
                 break;
             case UPDATE:
                 buf.writeLong(tick);
@@ -151,16 +196,31 @@ public class SPacketLaser implements IMessage {
                 if (cache == null) return;
                 switch (message.op) {
                     case SPAWN:
+                        float thicknessValue = message.thickness;
+                        int colorValue = message.color;
+                        String rendererTypeValue = message.rendererType;
+                        NBTTagCompound customDataValue = message.customData;
+                        if (message.usePresetRef) {
+                            RenderDataRefs.LaserRenderData base = RenderDataRefs.laserFromPreset(message.presetId);
+                            if (base != null) {
+                                if ((message.flags & RenderDataRefs.FLAG_THICKNESS) == 0) thicknessValue = base.thickness;
+                                if ((message.flags & RenderDataRefs.FLAG_COLOR) == 0) colorValue = base.color;
+                                if ((message.flags & RenderDataRefs.FLAG_RENDERER) == 0) rendererTypeValue = base.rendererType;
+                                customDataValue = (message.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0
+                                        ? RenderDataRefs.merge(base.customData, message.customData)
+                                        : base.customData;
+                            }
+                        }
                         cache.spawnLaser(
                                 message.id,
                                 message.tick,
                                 new Vec3d(message.sx, message.sy, message.sz),
                                 new Vec3d(message.dx, message.dy, message.dz),
                                 message.length,
-                                message.thickness,
-                                message.color,
-                                message.rendererType,
-                                message.customData
+                                thicknessValue,
+                                colorValue,
+                                rendererTypeValue,
+                                customDataValue
                         );
                         break;
                     case UPDATE:

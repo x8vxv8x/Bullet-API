@@ -8,26 +8,26 @@ import net.minecraft.util.math.Vec3d;
 
 @InternalApi
 public class ClientBullet {
-    private final int id;
-    private double positionX;
-    private double positionY;
-    private double positionZ;
-    private double prevPositionX;
-    private double prevPositionY;
-    private double prevPositionZ;
-    private double velocityX;
-    private double velocityY;
-    private double velocityZ;
-    private int life;
-    private final int maxLife;
-    private float damage;
-    private boolean dead;
-    private ResourceLocation texture;        // 纹理位置（可为null）
-    private int color;                        // 颜色 RGB
-    private float size;                        // 尺寸
-    private String rendererType;                // 渲染器类型
-    private NBTTagCompound customData;          // 其他自定义数据
-    private IBulletRenderer renderer;           // 渲染器实例
+    protected final int id;
+    protected double positionX;
+    protected double positionY;
+    protected double positionZ;
+    protected double prevPositionX;
+    protected double prevPositionY;
+    protected double prevPositionZ;
+    protected double velocityX;
+    protected double velocityY;
+    protected double velocityZ;
+    protected int life;
+    protected final int maxLife;
+    protected float damage;
+    protected boolean dead;
+    protected ResourceLocation texture;        // 纹理位置（可为null）
+    protected int color;                        // 颜色 RGB
+    protected float size;                        // 尺寸
+    protected String rendererType;                // 渲染器类型
+    protected NBTTagCompound customData;          // 其他自定义数据
+    protected IBulletRenderer renderer;           // 渲染器实例
 
     public ClientBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                         ResourceLocation texture, int color, float size, String rendererType,

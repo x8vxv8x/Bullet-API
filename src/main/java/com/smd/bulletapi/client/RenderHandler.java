@@ -11,6 +11,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,13 +21,15 @@ import java.util.Map;
 public class RenderHandler {
     private static final Map<IBulletRenderer, List<ClientBullet>> RENDER_GROUPS = new HashMap<>();
     private static final Map<ILaserRenderer, List<ClientLaser>> LASER_GROUPS = new HashMap<>();
+    private static final ArrayDeque<List<ClientBullet>> BULLET_GROUP_POOL = new ArrayDeque<>();
+    private static final ArrayDeque<List<ClientLaser>> LASER_GROUP_POOL = new ArrayDeque<>();
 
     @SubscribeEvent
     public static void onRenderWorldLast(RenderWorldLastEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.world == null || mc.player == null) {
-            RENDER_GROUPS.clear();
-            LASER_GROUPS.clear();
+            recycleBulletGroups();
+            recycleLaserGroups();
             return;
         }
 
@@ -36,7 +39,11 @@ public class RenderHandler {
         boolean hasBullets = cache != null && !cache.getBullets().isEmpty();
         boolean hasSummons = summonCache != null && !summonCache.getSummons().isEmpty();
         boolean hasLasers = laserCache != null && !laserCache.getLasers().isEmpty();
-        if (!hasBullets && !hasSummons && !hasLasers) return;
+        if (!hasBullets && !hasSummons && !hasLasers) {
+            recycleBulletGroups();
+            recycleLaserGroups();
+            return;
+        }
 
         float partialTicks = event.getPartialTicks();
 
@@ -45,15 +52,14 @@ public class RenderHandler {
         double viewY = mc.player.prevPosY + (mc.player.posY - mc.player.prevPosY) * partialTicks;
         double viewZ = mc.player.prevPosZ + (mc.player.posZ - mc.player.prevPosZ) * partialTicks;
 
+        recycleBulletGroups();
         if (hasBullets || hasSummons) {
-            // 按渲染器分组，以便批量渲染
-            RENDER_GROUPS.clear();
             if (hasBullets) {
                 for (ClientBullet bullet : cache.getBullets().values()) {
                     if (bullet.isDead()) continue;
                     IBulletRenderer renderer = bullet.getRenderer();
                     if (renderer != null) {
-                        RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                        acquireBulletGroup(renderer).add(bullet);
                     }
                 }
             }
@@ -62,7 +68,7 @@ public class RenderHandler {
                     if (bullet.isDead()) continue;
                     IBulletRenderer renderer = bullet.getRenderer();
                     if (renderer != null) {
-                        RENDER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(bullet);
+                        acquireBulletGroup(renderer).add(bullet);
                     }
                 }
             }
@@ -101,12 +107,12 @@ public class RenderHandler {
         }
 
         // 渲染激光
+        recycleLaserGroups();
         if (hasLasers) {
-            LASER_GROUPS.clear();
             for (ClientLaser laser : laserCache.getLasers().values()) {
                 ILaserRenderer renderer = laser.getRenderer();
                 if (renderer != null) {
-                    LASER_GROUPS.computeIfAbsent(renderer, k -> new ArrayList<>()).add(laser);
+                    acquireLaserGroup(renderer).add(laser);
                 }
             }
 
@@ -136,5 +142,47 @@ public class RenderHandler {
         GlStateManager.enableLighting();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
+    }
+
+    private static List<ClientBullet> acquireBulletGroup(IBulletRenderer renderer) {
+        List<ClientBullet> group = RENDER_GROUPS.get(renderer);
+        if (group != null) {
+            return group;
+        }
+        group = BULLET_GROUP_POOL.pollFirst();
+        if (group == null) {
+            group = new ArrayList<>();
+        }
+        RENDER_GROUPS.put(renderer, group);
+        return group;
+    }
+
+    private static List<ClientLaser> acquireLaserGroup(ILaserRenderer renderer) {
+        List<ClientLaser> group = LASER_GROUPS.get(renderer);
+        if (group != null) {
+            return group;
+        }
+        group = LASER_GROUP_POOL.pollFirst();
+        if (group == null) {
+            group = new ArrayList<>();
+        }
+        LASER_GROUPS.put(renderer, group);
+        return group;
+    }
+
+    private static void recycleBulletGroups() {
+        for (List<ClientBullet> group : RENDER_GROUPS.values()) {
+            group.clear();
+            BULLET_GROUP_POOL.addLast(group);
+        }
+        RENDER_GROUPS.clear();
+    }
+
+    private static void recycleLaserGroups() {
+        for (List<ClientLaser> group : LASER_GROUPS.values()) {
+            group.clear();
+            LASER_GROUP_POOL.addLast(group);
+        }
+        LASER_GROUPS.clear();
     }
 }

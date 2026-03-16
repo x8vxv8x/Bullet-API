@@ -40,6 +40,7 @@ public class BulletBuilder {
     private EntityLivingBase shooter;
     private ItemStack shooterHeldItem;
     private AttackSourceInfo attackSourceInfo;
+    private String presetId;
 
     public BulletBuilder(World world) {
         this.world = world;
@@ -115,11 +116,13 @@ public class BulletBuilder {
         if (preset == null) {
             throw new IllegalStateException("Unknown bullet preset: " + id);
         }
+        this.presetId = id;
         preset.apply(this);
         return this;
     }
 
     public BulletBuilder preset(BulletPreset preset) {
+        this.presetId = null;
         if (preset != null) {
             preset.apply(this);
         }
@@ -179,8 +182,15 @@ public class BulletBuilder {
                 world, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
                 collisionShape, hitBehavior, motionController, tickCallback, collisionFilter, onlyPlayer,
-                shooter, shooterHeldItem, attackSourceInfo
+                shooter, shooterHeldItem, attackSourceInfo, presetId
         );
         return new BulletHandle(world, id);
     }
+
+    public String getTexture() { return texture; }
+    public int getColor() { return color; }
+    public float getSize() { return size; }
+    public String getRendererType() { return rendererType; }
+    public NBTTagCompound getCustomData() { return customData.copy(); }
+    public String getPresetId() { return presetId; }
 }

@@ -2,6 +2,8 @@ package com.smd.bulletapi.network;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientSummonCache;
+import com.smd.bulletapi.common.RenderDataRefs;
+import com.smd.bulletapi.server.summon.SummonBullet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
@@ -34,6 +36,8 @@ public class SPacketSummon implements IMessage {
     private float size;
     private String rendererType;
     private NBTTagCompound customData;
+    private boolean useDefinitionRef;
+    private String definitionId;
     private int flags;
 
     public SPacketSummon() {}
@@ -43,23 +47,41 @@ public class SPacketSummon implements IMessage {
         this.id = id;
     }
 
-    public static SPacketSummon createSpawn(int id, Vec3d pos, Vec3d vel, int life, float damage,
-                                            String texture, int color, float size, String rendererType,
-                                            NBTTagCompound customData) {
-        SPacketSummon packet = new SPacketSummon(Operation.SPAWN, id);
+    public static SPacketSummon createSpawn(SummonBullet summon) {
+        SPacketSummon packet = new SPacketSummon(Operation.SPAWN, summon.getId());
+        Vec3d pos = summon.getPosition();
+        Vec3d vel = summon.getVelocity();
         packet.x = pos.x;
         packet.y = pos.y;
         packet.z = pos.z;
         packet.vx = vel.x;
         packet.vy = vel.y;
         packet.vz = vel.z;
-        packet.life = life;
-        packet.damage = damage;
-        packet.texture = texture;
-        packet.color = color;
-        packet.size = size;
-        packet.rendererType = rendererType;
-        packet.customData = customData;
+        packet.life = summon.getLife();
+        packet.damage = summon.getDamage();
+
+        String refDefinitionId = summon.getDefinitionId();
+        RenderDataRefs.BulletRenderData actual = RenderDataRefs.summonFromRuntime(summon);
+        RenderDataRefs.BulletRenderData base = RenderDataRefs.summonFromDefinition(refDefinitionId);
+        if (refDefinitionId != null && base != null) {
+            NBTTagCompound customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
+            packet.useDefinitionRef = true;
+            packet.definitionId = refDefinitionId;
+            packet.flags = RenderDataRefs.bulletDiffFlags(actual, base, customDataDiff);
+            if ((packet.flags & RenderDataRefs.FLAG_TEXTURE) != 0) packet.texture = actual.texture;
+            if ((packet.flags & RenderDataRefs.FLAG_COLOR) != 0) packet.color = actual.color;
+            if ((packet.flags & RenderDataRefs.FLAG_SIZE) != 0) packet.size = actual.size;
+            if ((packet.flags & RenderDataRefs.FLAG_RENDERER) != 0) packet.rendererType = actual.rendererType;
+            if ((packet.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
+                packet.customData = customDataDiff;
+            }
+        } else {
+            packet.texture = actual.texture;
+            packet.color = actual.color;
+            packet.size = actual.size;
+            packet.rendererType = actual.rendererType;
+            packet.customData = actual.customData;
+        }
         return packet;
     }
 
@@ -100,11 +122,22 @@ public class SPacketSummon implements IMessage {
                 vz = buf.readDouble();
                 life = buf.readInt();
                 damage = buf.readFloat();
-                texture = ByteBufUtils.readUTF8String(buf);
-                color = buf.readInt();
-                size = buf.readFloat();
-                rendererType = ByteBufUtils.readUTF8String(buf);
-                customData = ByteBufUtils.readTag(buf);
+                useDefinitionRef = buf.readBoolean();
+                if (useDefinitionRef) {
+                    definitionId = ByteBufUtils.readUTF8String(buf);
+                    flags = buf.readInt();
+                    if ((flags & RenderDataRefs.FLAG_TEXTURE) != 0) texture = ByteBufUtils.readUTF8String(buf);
+                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) color = buf.readInt();
+                    if ((flags & RenderDataRefs.FLAG_SIZE) != 0) size = buf.readFloat();
+                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) rendererType = ByteBufUtils.readUTF8String(buf);
+                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) customData = ByteBufUtils.readTag(buf);
+                } else {
+                    texture = ByteBufUtils.readUTF8String(buf);
+                    color = buf.readInt();
+                    size = buf.readFloat();
+                    rendererType = ByteBufUtils.readUTF8String(buf);
+                    customData = ByteBufUtils.readTag(buf);
+                }
                 break;
             case SNAPSHOT:
                 flags = buf.readInt();
@@ -141,11 +174,32 @@ public class SPacketSummon implements IMessage {
                 buf.writeDouble(vz);
                 buf.writeInt(life);
                 buf.writeFloat(damage);
-                ByteBufUtils.writeUTF8String(buf, texture == null ? "" : texture);
-                buf.writeInt(color);
-                buf.writeFloat(size);
-                ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
-                ByteBufUtils.writeTag(buf, customData);
+                buf.writeBoolean(useDefinitionRef);
+                if (useDefinitionRef) {
+                    ByteBufUtils.writeUTF8String(buf, definitionId == null ? "" : definitionId);
+                    buf.writeInt(flags);
+                    if ((flags & RenderDataRefs.FLAG_TEXTURE) != 0) {
+                        ByteBufUtils.writeUTF8String(buf, texture == null ? "" : texture);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) {
+                        buf.writeInt(color);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_SIZE) != 0) {
+                        buf.writeFloat(size);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) {
+                        ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
+                        ByteBufUtils.writeTag(buf, customData);
+                    }
+                } else {
+                    ByteBufUtils.writeUTF8String(buf, texture == null ? "" : texture);
+                    buf.writeInt(color);
+                    buf.writeFloat(size);
+                    ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
+                    ByteBufUtils.writeTag(buf, customData);
+                }
                 break;
             case SNAPSHOT:
                 buf.writeInt(flags);
@@ -177,9 +231,26 @@ public class SPacketSummon implements IMessage {
                 if (cache == null) return;
                 switch (message.op) {
                     case SPAWN:
+                        String textureValue = message.texture;
+                        int colorValue = message.color;
+                        float sizeValue = message.size;
+                        String rendererTypeValue = message.rendererType;
+                        NBTTagCompound customDataValue = message.customData;
+                        if (message.useDefinitionRef) {
+                            RenderDataRefs.BulletRenderData base = RenderDataRefs.summonFromDefinition(message.definitionId);
+                            if (base != null) {
+                                if ((message.flags & RenderDataRefs.FLAG_TEXTURE) == 0) textureValue = base.texture;
+                                if ((message.flags & RenderDataRefs.FLAG_COLOR) == 0) colorValue = base.color;
+                                if ((message.flags & RenderDataRefs.FLAG_SIZE) == 0) sizeValue = base.size;
+                                if ((message.flags & RenderDataRefs.FLAG_RENDERER) == 0) rendererTypeValue = base.rendererType;
+                                customDataValue = (message.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0
+                                        ? RenderDataRefs.merge(base.customData, message.customData)
+                                        : base.customData;
+                            }
+                        }
                         ResourceLocation textureLocation = null;
-                        if (message.texture != null && !message.texture.isEmpty()) {
-                            textureLocation = new ResourceLocation(message.texture);
+                        if (textureValue != null && !textureValue.isEmpty()) {
+                            textureLocation = new ResourceLocation(textureValue);
                         }
                         cache.spawnSummon(
                                 message.id,
@@ -188,10 +259,10 @@ public class SPacketSummon implements IMessage {
                                 message.life,
                                 message.damage,
                                 textureLocation,
-                                message.color,
-                                message.size,
-                                message.rendererType,
-                                message.customData
+                                colorValue,
+                                sizeValue,
+                                rendererTypeValue,
+                                customDataValue
                         );
                         break;
                     case SNAPSHOT:

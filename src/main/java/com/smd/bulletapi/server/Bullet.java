@@ -43,6 +43,7 @@ public class Bullet implements IBulletActor {
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
     private final AttackSourceInfo attackSourceInfo;
+    private final String renderPresetId;
 
     public Bullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
                   String texture, int color, float size, String rendererType,
@@ -50,7 +51,8 @@ public class Bullet implements IBulletActor {
                   IBulletHitBehavior hitBehavior,
                   IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
                   IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
-                  EntityLivingBase shooter, ItemStack shooterHeldItem, AttackSourceInfo attackSourceInfo) {
+                  EntityLivingBase shooter, ItemStack shooterHeldItem, AttackSourceInfo attackSourceInfo,
+                  String renderPresetId) {
         this.id = id;
         this.positionX = position.x;
         this.positionY = position.y;
@@ -76,6 +78,7 @@ public class Bullet implements IBulletActor {
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
         this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.normal() : attackSourceInfo;
+        this.renderPresetId = renderPresetId;
         this.attackSourceInfo.writeToTag(this.customData);
     }
 
@@ -144,6 +147,7 @@ public class Bullet implements IBulletActor {
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
+    public String getRenderPresetId() { return renderPresetId; }
 
     /**
      * 优先使用该入口，以复用同一次碰撞链路中的 CollisionContext。

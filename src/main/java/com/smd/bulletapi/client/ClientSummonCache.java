@@ -25,6 +25,13 @@ public class ClientSummonCache extends AbstractClientBulletCache {
         spawnEntry(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
     }
 
+    @Override
+    protected ClientBullet createEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
+                                       ResourceLocation texture, int color, float size, String rendererType,
+                                       NBTTagCompound customData) {
+        return new ClientSummon(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
+    }
+
     public void updateSummon(int id, Vec3d position, Vec3d velocity, Integer life) {
         applyEntryUpdate(id, position, velocity, life);
     }

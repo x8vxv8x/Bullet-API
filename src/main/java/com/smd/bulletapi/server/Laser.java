@@ -41,7 +41,11 @@ public class Laser implements ILaserActor {
     private final EntityLivingBase shooter;
     private final ItemStack shooterHeldItem;
     private final AttackSourceInfo attackSourceInfo;
+    private final String renderPresetId;
     private final Map<Integer, Long> lastHitTick = new HashMap<>();
+    private Vec3d syncBaselineStart;
+    private Vec3d syncBaselineDirection;
+    private double syncBaselineLength;
     public Laser(int id, Vec3d start, Vec3d direction, double maxLength, float thickness,
                  float damage, int life, boolean penetrate,
                  boolean followShooter, boolean onlyPlayer, boolean blockStops,
@@ -52,7 +56,7 @@ public class Laser implements ILaserActor {
                  int color, String rendererType, NBTTagCompound customData,
                  ILaserCollisionFilter collisionFilter,
                  EntityLivingBase shooter, ItemStack shooterHeldItem,
-                 AttackSourceInfo attackSourceInfo) {
+                 AttackSourceInfo attackSourceInfo, String renderPresetId) {
         this.id = id;
         this.start = start;
         this.direction = direction == null ? new Vec3d(0, 0, 0) : direction.normalize();
@@ -76,6 +80,7 @@ public class Laser implements ILaserActor {
         this.shooter = shooter;
         this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
         this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.fromTag(this.customData) : attackSourceInfo;
+        this.renderPresetId = renderPresetId;
         this.attackSourceInfo.writeToTag(this.customData);
     }
 
@@ -119,12 +124,20 @@ public class Laser implements ILaserActor {
         }
     }
 
+    public void captureSyncBaseline() {
+        this.syncBaselineStart = this.start;
+        this.syncBaselineDirection = this.direction;
+        this.syncBaselineLength = this.currentLength;
+    }
+
     public int getId() { return id; }
     public Vec3d getStart() { return start; }
+    public Vec3d getSyncBaselineStart() { return syncBaselineStart; }
     public void setStart(Vec3d start) {
         this.start = start == null ? new Vec3d(0, 0, 0) : start;
     }
     public Vec3d getDirection() { return direction; }
+    public Vec3d getSyncBaselineDirection() { return syncBaselineDirection; }
     public void setDirection(Vec3d direction) {
         if (direction == null || direction.lengthSquared() < 1.0E-6) {
             this.direction = new Vec3d(0, 0, 1);
@@ -134,6 +147,7 @@ public class Laser implements ILaserActor {
     }
     public double getMaxLength() { return maxLength; }
     public double getCurrentLength() { return currentLength; }
+    public double getSyncBaselineLength() { return syncBaselineLength; }
     public void setCurrentLength(double length) { this.currentLength = length; }
     public float getThickness() { return thickness; }
     public float getDamage() { return damage; }
@@ -153,6 +167,7 @@ public class Laser implements ILaserActor {
     public EntityLivingBase getShooter() { return shooter; }
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
+    public String getRenderPresetId() { return renderPresetId; }
     public void markDead() { this.dead = true; }
     public int getLife() { return life; }
     public void setLife(int life) { this.life = life; }

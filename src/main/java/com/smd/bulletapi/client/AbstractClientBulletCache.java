@@ -23,10 +23,16 @@ abstract class AbstractClientBulletCache {
     protected final void spawnEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
                                     ResourceLocation texture, int color, float size, String rendererType,
                                     NBTTagCompound customData) {
-        ClientBullet entry = new ClientBullet(id, position, velocity, life, damage,
+        ClientBullet entry = createEntry(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData);
         entry.setRenderer(ClientRendererResolvers.createBulletRenderer(texture, rendererType, customData));
         entries.put(id, entry);
+    }
+
+    protected ClientBullet createEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
+                                       ResourceLocation texture, int color, float size, String rendererType,
+                                       NBTTagCompound customData) {
+        return new ClientBullet(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
     }
 
     protected final void updateEntryVelocity(int id, Vec3d velocity) {

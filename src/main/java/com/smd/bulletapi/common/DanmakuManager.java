@@ -74,17 +74,16 @@ public class DanmakuManager {
                            IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
                            IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
                            EntityLivingBase shooter, ItemStack shooterHeldItem,
-                           AttackSourceInfo attackSourceInfo) {
+                           AttackSourceInfo attackSourceInfo, String renderPresetId) {
         if (world.isRemote) return -1;
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
                 collisionShape, hitBehavior, motionController, tickCallback, collisionFilter, onlyPlayer,
-                shooter, shooterHeldItem, attackSourceInfo);
+                shooter, shooterHeldItem, attackSourceInfo, renderPresetId);
         getWorldMap(world).put(id, bullet);
         MinecraftForge.EVENT_BUS.post(new BulletSpawnEvent(world, createBulletSnapshot(bullet)));
-        PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(
-                id, position, velocity, life, damage, texture, color, size, rendererType, customData),
+        PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(bullet),
                 world.provider.getDimension());
         return id;
     }
@@ -156,7 +155,7 @@ public class DanmakuManager {
                           ILaserHitBehavior hitBehavior,
                           ILaserCollisionFilter collisionFilter,
                           EntityLivingBase shooter, ItemStack shooterHeldItem,
-                          AttackSourceInfo attackSourceInfo) {
+                          AttackSourceInfo attackSourceInfo, String renderPresetId) {
         if (world.isRemote) return -1;
         Vec3d offset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
         Vec3d offsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
@@ -180,13 +179,11 @@ public class DanmakuManager {
         Laser laser = new Laser(id, start, direction, maxLength, thickness, damage,
                 life, penetrate, followShooter, onlyPlayer, blockStops, offset, offsetLocal,
                 eventIntervalTicks, hitBehavior, color, rendererType, customData, collisionFilter,
-                shooter, shooterHeldItem, attackSourceInfo);
+                shooter, shooterHeldItem, attackSourceInfo, renderPresetId);
         laser.setCurrentLength(computeLaserLength(laser, world));
         getLaserWorldMap(world).put(id, laser);
         MinecraftForge.EVENT_BUS.post(new LaserSpawnEvent(world, createLaserSnapshot(laser)));
-        PacketHandler.sendToDimension(SPacketLaser.createSpawn(
-                id, world.getTotalWorldTime(), laser.getStart(), laser.getDirection(), laser.getCurrentLength(),
-                laser.getThickness(), laser.getColor(), laser.getRendererType(), laser.getCustomData()),
+        PacketHandler.sendToDimension(SPacketLaser.createSpawn(laser, world.getTotalWorldTime()),
                 world.provider.getDimension());
         return id;
     }
@@ -255,13 +252,8 @@ public class DanmakuManager {
 
         Map<Integer, Laser> laserMap = worldLasers.get(world);
         if (laserMap != null) {
-            Map<Integer, Vec3d> previousLaserStarts = new HashMap<>();
-            Map<Integer, Vec3d> previousLaserDirections = new HashMap<>();
-            Map<Integer, Double> previousLaserLengths = new HashMap<>();
             for (Laser laser : laserMap.values()) {
-                previousLaserStarts.put(laser.getId(), laser.getStart());
-                previousLaserDirections.put(laser.getId(), laser.getDirection());
-                previousLaserLengths.put(laser.getId(), laser.getCurrentLength());
+                laser.captureSyncBaseline();
                 laser.update(world);
             }
 
@@ -270,9 +262,9 @@ public class DanmakuManager {
                 if (laser.isDead()) continue;
                 if (laserMap.get(laser.getId()) != laser) continue;
 
-                Vec3d previousStart = previousLaserStarts.get(laser.getId());
-                Vec3d previousDirection = previousLaserDirections.get(laser.getId());
-                double previousLength = previousLaserLengths.getOrDefault(laser.getId(), laser.getCurrentLength());
+                Vec3d previousStart = laser.getSyncBaselineStart();
+                Vec3d previousDirection = laser.getSyncBaselineDirection();
+                double previousLength = laser.getSyncBaselineLength();
                 double length = computeLaserLength(laser, world);
                 laser.setCurrentLength(length);
                 handleLaserCollision(laser, world);

@@ -52,6 +52,8 @@ public class SummonManager {
     private final Map<UUID, LinkedHashSet<OwnedSummonRef>> ownerSummons = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1000000);
     private final SummonSlotManager slotManager = new SummonSlotManager();
+    private final List<SummonBullet> tickSummonsScratch = new ArrayList<>();
+    private final List<Integer> deadSummonIdsScratch = new ArrayList<>();
 
     private SummonManager() {}
 
@@ -352,10 +354,11 @@ public class SummonManager {
         Map<Integer, SummonBullet> summonMap = worldSummons.get(event.world);
         if (summonMap == null || summonMap.isEmpty()) return;
 
-        List<SummonBullet> summons = new ArrayList<>(summonMap.values());
+        tickSummonsScratch.clear();
+        tickSummonsScratch.addAll(summonMap.values());
         long worldTick = event.world.getTotalWorldTime();
         Set<UUID> reconciledOwners = new HashSet<>();
-        for (SummonBullet summon : summons) {
+        for (SummonBullet summon : tickSummonsScratch) {
             if (summon.isDead()) continue;
             if (summonMap.get(summon.getId()) != summon) continue;
 
@@ -407,15 +410,17 @@ public class SummonManager {
             }
         }
 
-        List<Integer> deadIds = new ArrayList<>();
+        deadSummonIdsScratch.clear();
         for (SummonBullet summon : summonMap.values()) {
             if (summon.isDead()) {
-                deadIds.add(summon.getId());
+                deadSummonIdsScratch.add(summon.getId());
             }
         }
-        for (Integer deadId : deadIds) {
+        for (Integer deadId : deadSummonIdsScratch) {
             removeSummon(event.world, deadId, LifecycleRemoveReason.EXPIRED);
         }
+        tickSummonsScratch.clear();
+        deadSummonIdsScratch.clear();
     }
 
     @SubscribeEvent
@@ -439,18 +444,7 @@ public class SummonManager {
     }
 
     private void sendSpawn(World world, SummonBullet summon) {
-        PacketHandler.sendToDimension(SPacketSummon.createSpawn(
-                summon.getId(),
-                summon.getPosition(),
-                summon.getVelocity(),
-                summon.getLife(),
-                summon.getDamage(),
-                summon.getTexture(),
-                summon.getColor(),
-                summon.getSize(),
-                summon.getRendererType(),
-                summon.getCustomData()
-        ), world.provider.getDimension());
+        PacketHandler.sendToDimension(SPacketSummon.createSpawn(summon), world.provider.getDimension());
     }
 
     private void sendSnapshot(World world, SummonBullet summon, int flags) {

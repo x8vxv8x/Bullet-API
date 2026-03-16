@@ -38,6 +38,7 @@ public class LaserBuilder {
     private EntityLivingBase shooter;
     private ItemStack shooterHeldItem;
     private AttackSourceInfo attackSourceInfo;
+    private String presetId;
 
     public LaserBuilder(World world) {
         this.world = world;
@@ -123,11 +124,13 @@ public class LaserBuilder {
         if (preset == null) {
             throw new IllegalStateException("Unknown laser preset: " + id);
         }
+        this.presetId = id;
         preset.apply(this);
         return this;
     }
 
     public LaserBuilder preset(LaserPreset preset) {
+        this.presetId = null;
         if (preset != null) {
             preset.apply(this);
         }
@@ -210,8 +213,15 @@ public class LaserBuilder {
                 collisionFilter,
                 shooter,
                 shooterHeldItem,
-                attackSourceInfo
+                attackSourceInfo,
+                presetId
         );
         return new LaserHandle(world, id);
     }
+
+    public float getThickness() { return thickness; }
+    public int getColor() { return color; }
+    public String getRendererType() { return rendererType; }
+    public NBTTagCompound getCustomData() { return customData.copy(); }
+    public String getPresetId() { return presetId; }
 }

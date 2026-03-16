@@ -43,7 +43,7 @@ public class SummonBullet extends Bullet implements ISummonActor {
                 definition.getRendererType(),
                 definition.getCustomData() == null ? new NBTTagCompound() : definition.getCustomData().copy(),
                 definition.getCollisionShape(), null, null, null, null, false, owner, null,
-                AttackSourceInfo.summonBody(owner.getUniqueID(), id, definition.getId()));
+                AttackSourceInfo.summonBody(owner.getUniqueID(), id, definition.getId()), null);
         this.ownerId = owner.getUniqueID();
         this.slotCost = definition.getSlotCost();
         this.definitionId = definition.getId();
