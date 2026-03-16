@@ -4,7 +4,6 @@ import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
-import com.smd.bulletapi.common.summon.behavior.ISummonCommandHandler;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
 import net.minecraft.nbt.NBTTagCompound;
@@ -35,7 +34,6 @@ public class SummonDefinition {
     private ISummonMoveController moveController;
     private ISummonAttackPattern attackPattern;
     private IFormationStrategy formationStrategy;
-    private ISummonCommandHandler commandHandler;
 
     public SummonDefinition(String id) {
         this.id = id;
@@ -74,7 +72,6 @@ public class SummonDefinition {
         copy.moveController = moveController;
         copy.attackPattern = attackPattern;
         copy.formationStrategy = formationStrategy;
-        copy.commandHandler = commandHandler;
         return copy;
     }
 
@@ -131,8 +128,6 @@ public class SummonDefinition {
     public SummonDefinition attackPattern(ISummonAttackPattern attackPattern) { this.attackPattern = attackPattern; return this; }
     public IFormationStrategy getFormationStrategy() { return formationStrategy; }
     public SummonDefinition formationStrategy(IFormationStrategy formationStrategy) { this.formationStrategy = formationStrategy; return this; }
-    public ISummonCommandHandler getCommandHandler() { return commandHandler; }
-    public SummonDefinition commandHandler(ISummonCommandHandler commandHandler) { this.commandHandler = commandHandler; return this; }
 
     public SummonDefinition set(String key, String value) {
         customData.setString(key, value);
@@ -286,11 +281,6 @@ public class SummonDefinition {
             return this;
         }
 
-        public Builder commandHandler(ISummonCommandHandler commandHandler) {
-            definition.commandHandler(commandHandler);
-            return this;
-        }
-
         public Builder set(String key, String value) {
             definition.set(key, value);
             return this;
@@ -337,7 +327,6 @@ public class SummonDefinition {
             definition.moveController(copy.getMoveController());
             definition.attackPattern(copy.getAttackPattern());
             definition.formationStrategy(copy.getFormationStrategy());
-            definition.commandHandler(copy.getCommandHandler());
             return this;
         }
 

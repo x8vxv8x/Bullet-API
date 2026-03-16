@@ -5,7 +5,6 @@ import com.smd.bulletapi.api.BulletApi;
 import com.smd.bulletapi.api.LaserApi;
 import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.builder.BulletBuilder;
-import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.collision.SphereShape;
@@ -39,12 +38,10 @@ public class TestEvent {
 
         if (player.isSneaking() && player.isInWater()) {
             spawnLaserEyeTest(player);
-        } else if (player.isSprinting() && player.isInWater()) {
+        } else if (player.isInWater()) {
             spawnRamWispTest(player);
         } else if (player.isSprinting()) {
             spawnFairyOrbTest(player);
-        } else if (player.isInWater()) {
-            spawnLaserPolyTest(player);
         } else if (player.isSneaking()) {
             spawnModelTestBullets(player, victim);
         } else {
@@ -64,10 +61,10 @@ public class TestEvent {
 
         EntityLivingBase hit = (EntityLivingBase) event.getHitEntity();
         int summonId = ctx.attackSource.getSummonId();
-        if (summonId >= 0 && SummonApi.handle(event.getWorld(), summonId).supportsCommand(RamStrikeMoveController.COMMAND_BODY_HIT)) {
-            SummonApi.handle(event.getWorld(), summonId).sendCommand(
-                    SummonCommand.of(RamStrikeMoveController.COMMAND_BODY_HIT)
-                            .withInt(RamStrikeMoveController.KEY_HIT_ENTITY_ID, hit.getEntityId()));
+        if (summonId >= 0) {
+            SummonApi.handle(event.getWorld(), summonId)
+                    .setMode(RamStrikeMoveController.MODE_BODY_HIT)
+                    .setInt(RamStrikeMoveController.KEY_HIT_ENTITY_ID, hit.getEntityId());
         }
 
         ctx.damage = Math.max(ctx.damage, event.getBullet().getDamage()) * 1.25f;

@@ -1,10 +1,8 @@
 package com.smd.bulletapi.common.summon.behavior.impl;
 
-import com.smd.bulletapi.api.summon.SummonCommand;
 import com.smd.bulletapi.common.summon.SummonContext;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
-import com.smd.bulletapi.common.summon.behavior.ISummonCommandHandler;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.api.runtime.ISummonActor;
@@ -15,8 +13,8 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Map;
 import java.util.HashMap;
 
-public class RamStrikeMoveController implements ISummonMoveController, ISummonCommandHandler {
-    public static final String COMMAND_BODY_HIT = SummonPresetKeys.RAM_WISP + "/body_hit";
+public class RamStrikeMoveController implements ISummonMoveController {
+    public static final String MODE_BODY_HIT = SummonPresetKeys.RAM_WISP + "/body_hit";
     public static final String KEY_HIT_ENTITY_ID = "hit_entity_id";
 
     private static final Map<Integer, RamState> STATES = new HashMap<>();
@@ -53,6 +51,7 @@ public class RamStrikeMoveController implements ISummonMoveController, ISummonCo
         RamState state = STATES.computeIfAbsent(summon.getId(), ignored -> new RamState());
         state.lastActiveTick = context.worldTick;
         pruneStaleStates(context.worldTick);
+        consumeBodyHit(context);
 
         EntityLivingBase target = context.getTarget();
         if (target == null || target.isDead) {
@@ -101,23 +100,17 @@ public class RamStrikeMoveController implements ISummonMoveController, ISummonCo
         }
     }
 
-    @Override
-    public boolean supportsCommand(String commandId) {
-        return COMMAND_BODY_HIT.equals(commandId);
-    }
-
-    @Override
-    public boolean handleCommand(SummonContext context, SummonCommand command) {
-        if (!COMMAND_BODY_HIT.equals(command.getCommandId())) {
-            return false;
+    private void consumeBodyHit(SummonContext context) {
+        if (!MODE_BODY_HIT.equals(context.getMode()) || !context.hasRuntimeParam(KEY_HIT_ENTITY_ID)) {
+            return;
         }
-        int hitEntityId = command.getInt(KEY_HIT_ENTITY_ID, -1);
+        int hitEntityId = context.consumeInt(KEY_HIT_ENTITY_ID, -1);
+        context.clearMode();
         Entity entity = hitEntityId < 0 ? null : context.world.getEntityByID(hitEntityId);
         if (!(entity instanceof EntityLivingBase) || entity.isDead) {
-            return true;
+            return;
         }
         applyBodyHit(context, (EntityLivingBase) entity);
-        return true;
     }
 
     private void applyBodyHit(SummonContext context, EntityLivingBase hitEntity) {
@@ -125,6 +118,7 @@ public class RamStrikeMoveController implements ISummonMoveController, ISummonCo
         RamState state = STATES.computeIfAbsent(summon.getId(), ignored -> new RamState());
         state.lastActiveTick = context.worldTick;
         state.lastHitTargetId = hitEntity.getEntityId();
+        context.setTarget(hitEntity);
 
         if (state.phase == Phase.PENETRATING) {
             return;

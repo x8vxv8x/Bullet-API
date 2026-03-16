@@ -37,7 +37,6 @@ public class RamWispBlueprint extends AbstractContactSummonBlueprint {
                 .syncIntervalTicks(1)
                 .bodyCollisionIntervalTicks(2)
                 .collisionShape(new SphereShape(0.28))
-                .moveController(controller)
-                .commandHandler(controller);
+                .moveController(controller);
     }
 }

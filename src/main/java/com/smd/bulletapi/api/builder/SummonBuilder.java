@@ -9,7 +9,6 @@ import com.smd.bulletapi.common.summon.SummonManager;
 import com.smd.bulletapi.common.summon.SummonRegistry;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
-import com.smd.bulletapi.common.summon.behavior.ISummonCommandHandler;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
 import net.minecraft.entity.EntityLivingBase;
@@ -161,11 +160,6 @@ public class SummonBuilder {
 
     public SummonBuilder formationStrategy(IFormationStrategy strategy) {
         resolveDefinitionForMutation().formationStrategy(strategy);
-        return this;
-    }
-
-    public SummonBuilder commandHandler(ISummonCommandHandler handler) {
-        resolveDefinitionForMutation().commandHandler(handler);
         return this;
     }
 
