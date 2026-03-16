@@ -12,12 +12,14 @@ import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 @PublicApi
 public class SummonBuilder {
     private final World world;
     private EntityLivingBase owner;
+    private Vec3d position;
     private String definitionId;
     private SummonDefinition definition;
 
@@ -27,6 +29,11 @@ public class SummonBuilder {
 
     public SummonBuilder owner(EntityLivingBase owner) {
         this.owner = owner;
+        return this;
+    }
+
+    public SummonBuilder position(Vec3d position) {
+        this.position = position;
         return this;
     }
 
@@ -190,7 +197,7 @@ public class SummonBuilder {
     public SummonHandle spawnHandle() {
         if (world.isRemote) throw new IllegalStateException("Cannot spawn summon on client side");
         if (owner == null) throw new IllegalStateException("Summon owner must be set");
-        int id = SummonManager.getInstance().spawnSummon(world, owner, resolveDefinition());
+        int id = SummonManager.getInstance().spawnSummon(world, owner, resolveDefinition(), position);
         return new SummonHandle(world, id);
     }
 

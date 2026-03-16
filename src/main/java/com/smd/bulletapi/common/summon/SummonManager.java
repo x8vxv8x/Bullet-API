@@ -70,6 +70,10 @@ public class SummonManager {
     }
 
     public int spawnSummon(World world, EntityLivingBase owner, SummonDefinition definition) {
+        return spawnSummon(world, owner, definition, null);
+    }
+
+    public int spawnSummon(World world, EntityLivingBase owner, SummonDefinition definition, Vec3d position) {
         if (world.isRemote) return -1;
         if (owner == null) throw new IllegalArgumentException("Owner must not be null");
 
@@ -81,7 +85,7 @@ public class SummonManager {
 
         int id = nextId.getAndIncrement();
         int formationIndex = getOwnedSummonCount(owner.getUniqueID());
-        Vec3d spawnPos = owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + definition.getIdleHeight(), 0);
+        Vec3d spawnPos = position == null ? getDefaultSpawnPosition(owner, definition) : position;
         SummonBullet summon = new SummonBullet(id, spawnPos, new Vec3d(0, 0, 0), definition, owner, formationIndex, world.getTotalWorldTime());
         getWorldMap(world).put(id, summon);
         indexSummon(world, summon);
@@ -428,6 +432,10 @@ public class SummonManager {
 
     private Map<Integer, SummonBullet> getWorldMap(World world) {
         return worldSummons.computeIfAbsent(world, ignored -> new HashMap<>());
+    }
+
+    private Vec3d getDefaultSpawnPosition(EntityLivingBase owner, SummonDefinition definition) {
+        return owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + definition.getIdleHeight(), 0);
     }
 
     private void sendSpawn(World world, SummonBullet summon) {
