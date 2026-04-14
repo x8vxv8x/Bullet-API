@@ -5,6 +5,9 @@ import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.api.snapshot.BulletSnapshot;
 import com.smd.bulletapi.api.snapshot.LaserSnapshot;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
+import com.smd.bulletapi.common.runtime.danmaku.DanmakuSnapshotFactory;
+import com.smd.bulletapi.common.runtime.danmaku.DanmakuSyncService;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.LaserCollisionEvent;
 import com.smd.bulletapi.event.lifecycle.BulletRemoveEvent;
@@ -12,7 +15,6 @@ import com.smd.bulletapi.event.lifecycle.BulletSpawnEvent;
 import com.smd.bulletapi.event.lifecycle.LaserRemoveEvent;
 import com.smd.bulletapi.event.lifecycle.LaserSpawnEvent;
 import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
-import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketBulletVisual;
 import com.smd.bulletapi.network.SPacketDanmaku;
 import com.smd.bulletapi.network.SPacketLaser;
@@ -50,8 +52,10 @@ import java.util.function.Consumer;
 @InternalApi
 public class DanmakuManager {
     private static final DanmakuManager INSTANCE = new DanmakuManager();
-    private final Map<World, Map<Integer, Bullet>> worldBullets = new HashMap<>();
-    private final Map<World, Map<Integer, Laser>> worldLasers = new HashMap<>();
+    private final WorldRuntimeStore<Bullet> bulletStore = new WorldRuntimeStore<>();
+    private final WorldRuntimeStore<Laser> laserStore = new WorldRuntimeStore<>();
+    private final DanmakuSnapshotFactory snapshotFactory = new DanmakuSnapshotFactory();
+    private final DanmakuSyncService syncService = new DanmakuSyncService();
     private final AtomicInteger nextId = new AtomicInteger(0);
 
     private DanmakuManager() {}
@@ -61,11 +65,11 @@ public class DanmakuManager {
     }
 
     private Map<Integer, Bullet> getWorldMap(World world) {
-        return worldBullets.computeIfAbsent(world, w -> new HashMap<>());
+        return bulletStore.getOrCreateWorldEntries(world);
     }
 
     private Map<Integer, Laser> getLaserWorldMap(World world) {
-        return worldLasers.computeIfAbsent(world, w -> new HashMap<>());
+        return laserStore.getOrCreateWorldEntries(world);
     }
 
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
@@ -82,10 +86,9 @@ public class DanmakuManager {
                 texture, color, size, rendererType, customData,
                 collisionShape, hitBehavior, motionController, tickCallback, collisionFilter, onlyPlayer,
                 shooter, shooterHeldItem, attackSourceInfo, renderPresetId);
-        getWorldMap(world).put(id, bullet);
+        bulletStore.put(world, bullet);
         MinecraftForge.EVENT_BUS.post(new BulletSpawnEvent(world, createBulletSnapshot(bullet)));
-        PacketHandler.sendToDimension(SPacketDanmaku.createSpawn(bullet),
-                world.provider.getDimension());
+        syncService.sendBulletSpawn(world, bullet);
         return id;
     }
 
@@ -94,14 +97,11 @@ public class DanmakuManager {
     }
 
     public void removeBullet(World world, int id, LifecycleRemoveReason reason) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null) return;
-
-        Bullet removed = map.remove(id);
+        Bullet removed = bulletStore.remove(world, id);
         if (removed == null) return;
 
         MinecraftForge.EVENT_BUS.post(new BulletRemoveEvent(world, createBulletSnapshot(removed), reason));
-        PacketHandler.sendToDimension(SPacketDanmaku.createRemove(id), world.provider.getDimension());
+        syncService.sendBulletRemove(world, id);
     }
 
     public void updateBulletVelocity(World world, int id, Vec3d newVelocity) {
@@ -161,15 +161,11 @@ public class DanmakuManager {
     }
 
     public boolean hasBullet(World world, int id) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null) return false;
-        Bullet bullet = map.get(id);
-        return bullet != null && !bullet.isDead();
+        return bulletStore.hasLive(world, id);
     }
 
     public BulletSnapshot getBulletSnapshot(World world, int id) {
-        Bullet bullet = getLiveBullet(world, id);
-        return bullet == null ? null : createBulletSnapshot(bullet);
+        return bulletStore.getLiveSnapshot(world, id, snapshotFactory.bulletSnapshots());
     }
 
     public int spawnLaser(World world, Vec3d start, Vec3d direction, double maxLength,
@@ -209,10 +205,9 @@ public class DanmakuManager {
                 eventIntervalTicks, hitBehavior, color, rendererType, customData, collisionFilter,
                 shooter, shooterHeldItem, attackSourceInfo, renderPresetId);
         laser.setCurrentLength(computeLaserLength(laser, world));
-        getLaserWorldMap(world).put(id, laser);
+        laserStore.put(world, laser);
         MinecraftForge.EVENT_BUS.post(new LaserSpawnEvent(world, createLaserSnapshot(laser)));
-        PacketHandler.sendToDimension(SPacketLaser.createSpawn(laser, world.getTotalWorldTime()),
-                world.provider.getDimension());
+        syncService.sendLaserSpawn(world, laser);
         return id;
     }
 
@@ -221,26 +216,19 @@ public class DanmakuManager {
     }
 
     public void removeLaser(World world, int id, LifecycleRemoveReason reason) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return;
-
-        Laser removed = map.remove(id);
+        Laser removed = laserStore.remove(world, id);
         if (removed == null) return;
 
         MinecraftForge.EVENT_BUS.post(new LaserRemoveEvent(world, createLaserSnapshot(removed), reason));
-        PacketHandler.sendToDimension(SPacketLaser.createRemove(id), world.provider.getDimension());
+        syncService.sendLaserRemove(world, id);
     }
 
     public boolean hasLaser(World world, int id) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return false;
-        Laser laser = map.get(id);
-        return laser != null && !laser.isDead();
+        return laserStore.hasLive(world, id);
     }
 
     public LaserSnapshot getLaserSnapshot(World world, int id) {
-        Laser laser = getLiveLaser(world, id);
-        return laser == null ? null : createLaserSnapshot(laser);
+        return laserStore.getLiveSnapshot(world, id, snapshotFactory.laserSnapshots());
     }
 
     public boolean updateLaserTransform(World world, int id, Vec3d start, Vec3d direction) {
@@ -278,7 +266,7 @@ public class DanmakuManager {
         World world = event.world;
         if (world.isRemote || event.phase != TickEvent.Phase.END) return;
 
-        Map<Integer, Laser> laserMap = worldLasers.get(world);
+        Map<Integer, Laser> laserMap = laserStore.getWorldEntries(world);
         if (laserMap != null) {
             for (Laser laser : laserMap.values()) {
                 laser.captureSyncBaseline();
@@ -288,7 +276,7 @@ public class DanmakuManager {
             List<Laser> lasers = new ArrayList<>(laserMap.values());
             for (Laser laser : lasers) {
                 if (laser.isDead()) continue;
-                if (laserMap.get(laser.getId()) != laser) continue;
+                if (!laserStore.isCurrent(world, laser.getId(), laser)) continue;
 
                 Vec3d previousStart = laser.getSyncBaselineStart();
                 Vec3d previousDirection = laser.getSyncBaselineDirection();
@@ -306,7 +294,7 @@ public class DanmakuManager {
             removeDeadLasers(world, laserMap, LifecycleRemoveReason.EXPIRED);
         }
 
-        Map<Integer, Bullet> map = worldBullets.get(world);
+        Map<Integer, Bullet> map = bulletStore.getWorldEntries(world);
         if (map != null) {
             for (Bullet bullet : map.values()) {
                 bullet.update(world);
@@ -318,7 +306,7 @@ public class DanmakuManager {
             for (Bullet bullet : bullets) {
                 ICollisionShape shape = bullet.getCollisionShape();
                 if (shape == null || bullet.isDead()) continue;
-                if (map.get(bullet.getId()) != bullet) continue;
+                if (!bulletStore.isCurrent(world, bullet.getId(), bullet)) continue;
 
                 double posX = bullet.getPosX();
                 double posY = bullet.getPosY();
@@ -329,7 +317,7 @@ public class DanmakuManager {
                         if (!canBulletCollide(world, bullet, player)) continue;
                         if (shape.checkCollision(posX, posY, posZ, player)) {
                             handleCollision(bullet, world, player);
-                            if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                            if (bullet.isDead() || !bulletStore.isCurrent(world, bullet.getId(), bullet)) {
                                 break;
                             }
                         }
@@ -344,7 +332,7 @@ public class DanmakuManager {
                         if (!canBulletCollide(world, bullet, entity)) continue;
                         if (shape.checkCollision(posX, posY, posZ, entity)) {
                             handleCollision(bullet, world, entity);
-                            if (bullet.isDead() || map.get(bullet.getId()) != bullet) {
+                            if (bullet.isDead() || !bulletStore.isCurrent(world, bullet.getId(), bullet)) {
                                 break;
                             }
                         }
@@ -423,14 +411,14 @@ public class DanmakuManager {
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
         World world = event.getWorld();
-        Map<Integer, Bullet> removedBullets = worldBullets.remove(world);
+        Map<Integer, Bullet> removedBullets = bulletStore.removeWorld(world);
         if (removedBullets != null) {
             for (Bullet bullet : removedBullets.values()) {
                 MinecraftForge.EVENT_BUS.post(new BulletRemoveEvent(world, createBulletSnapshot(bullet), LifecycleRemoveReason.WORLD_UNLOAD));
             }
         }
 
-        Map<Integer, Laser> removedLasers = worldLasers.remove(world);
+        Map<Integer, Laser> removedLasers = laserStore.removeWorld(world);
         if (removedLasers != null) {
             for (Laser laser : removedLasers.values()) {
                 MinecraftForge.EVENT_BUS.post(new LaserRemoveEvent(world, createLaserSnapshot(laser), LifecycleRemoveReason.WORLD_UNLOAD));
@@ -439,71 +427,27 @@ public class DanmakuManager {
     }
 
     public int getBulletCount(World world) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null) return 0;
-        int count = 0;
-        for (Bullet bullet : map.values()) {
-            if (!bullet.isDead()) count++;
-        }
-        return count;
+        return bulletStore.countLive(world);
     }
 
     public int getLaserCount(World world) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return 0;
-        int count = 0;
-        for (Laser laser : map.values()) {
-            if (!laser.isDead()) count++;
-        }
-        return count;
+        return laserStore.countLive(world);
     }
 
     public List<Integer> getBulletIds(World world) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
-        List<Integer> ids = new ArrayList<>();
-        for (Map.Entry<Integer, Bullet> entry : map.entrySet()) {
-            if (!entry.getValue().isDead()) {
-                ids.add(entry.getKey());
-            }
-        }
-        return ids;
+        return bulletStore.getLiveIds(world);
     }
 
     public List<Integer> getLaserIds(World world) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
-        List<Integer> ids = new ArrayList<>();
-        for (Map.Entry<Integer, Laser> entry : map.entrySet()) {
-            if (!entry.getValue().isDead()) {
-                ids.add(entry.getKey());
-            }
-        }
-        return ids;
+        return laserStore.getLiveIds(world);
     }
 
     public List<BulletSnapshot> getBulletSnapshots(World world) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
-        List<BulletSnapshot> snapshots = new ArrayList<>();
-        for (Bullet bullet : map.values()) {
-            if (!bullet.isDead()) {
-                snapshots.add(createBulletSnapshot(bullet));
-            }
-        }
-        return snapshots;
+        return bulletStore.getLiveSnapshots(world, snapshotFactory.bulletSnapshots());
     }
 
     public List<LaserSnapshot> getLaserSnapshots(World world) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null || map.isEmpty()) return java.util.Collections.emptyList();
-        List<LaserSnapshot> snapshots = new ArrayList<>();
-        for (Laser laser : map.values()) {
-            if (!laser.isDead()) {
-                snapshots.add(createLaserSnapshot(laser));
-            }
-        }
-        return snapshots;
+        return laserStore.getLiveSnapshots(world, snapshotFactory.laserSnapshots());
     }
 
     private double computeLaserLength(Laser laser, World world) {
@@ -626,45 +570,19 @@ public class DanmakuManager {
     }
 
     private BulletSnapshot createBulletSnapshot(Bullet bullet) {
-        return new BulletSnapshot(
-                bullet.getId(),
-                bullet.getPosition(),
-                bullet.getVelocity(),
-                bullet.getLife(),
-                bullet.getDamage(),
-                bullet.isOnlyPlayer(),
-                bullet.getAttackSourceInfo()
-        );
+        return snapshotFactory.createBulletSnapshot(bullet);
     }
 
     private LaserSnapshot createLaserSnapshot(Laser laser) {
-        return new LaserSnapshot(
-                laser.getId(),
-                laser.getStart(),
-                laser.getDirection(),
-                laser.getCurrentLength(),
-                laser.getThickness(),
-                laser.getLife(),
-                laser.getDamage(),
-                laser.isOnlyPlayer(),
-                laser.isPenetrate(),
-                laser.isBlockStops(),
-                laser.getAttackSourceInfo()
-        );
+        return snapshotFactory.createLaserSnapshot(laser);
     }
 
     private Bullet getLiveBullet(World world, int id) {
-        Map<Integer, Bullet> map = worldBullets.get(world);
-        if (map == null) return null;
-        Bullet bullet = map.get(id);
-        return bullet == null || bullet.isDead() ? null : bullet;
+        return bulletStore.getLive(world, id);
     }
 
     private Laser getLiveLaser(World world, int id) {
-        Map<Integer, Laser> map = worldLasers.get(world);
-        if (map == null) return null;
-        Laser laser = map.get(id);
-        return laser == null || laser.isDead() ? null : laser;
+        return laserStore.getLive(world, id);
     }
 
     private void syncBullet(World world, Bullet bullet, int flags) {
@@ -673,17 +591,7 @@ public class DanmakuManager {
             removeBullet(world, bullet.getId(), LifecycleRemoveReason.API_REQUEST);
             return;
         }
-        if (flags == 0) return;
-        PacketHandler.sendToDimension(
-                SPacketDanmaku.createUpdate(
-                        bullet.getId(),
-                        flags,
-                        (flags & SPacketDanmaku.FLAG_POSITION) != 0 ? bullet.getPosition() : null,
-                        (flags & SPacketDanmaku.FLAG_VELOCITY) != 0 ? bullet.getVelocity() : null,
-                        (flags & SPacketDanmaku.FLAG_LIFE) != 0 ? bullet.getLife() : null
-                ),
-                world.provider.getDimension()
-        );
+        syncService.syncBullet(world, bullet, flags);
     }
 
     private void syncLaser(World world, Laser laser, int flags) {
@@ -692,34 +600,14 @@ public class DanmakuManager {
             removeLaser(world, laser.getId(), LifecycleRemoveReason.API_REQUEST);
             return;
         }
-        if (flags == 0) return;
-        PacketHandler.sendToDimension(
-                SPacketLaser.createUpdate(
-                        laser.getId(),
-                        world.getTotalWorldTime(),
-                        flags,
-                        (flags & SPacketLaser.FLAG_START) != 0 ? laser.getStart() : null,
-                        (flags & SPacketLaser.FLAG_DIRECTION) != 0 ? laser.getDirection() : null,
-                        (flags & SPacketLaser.FLAG_LENGTH) != 0 ? laser.getCurrentLength() : null
-                ),
-                world.provider.getDimension()
-        );
+        syncService.syncLaser(world, laser, flags);
     }
 
     private void syncBulletVisual(World world, Bullet bullet, int flags) {
-        if (bullet == null || flags == 0) {
+        if (bullet == null) {
             return;
         }
-        PacketHandler.sendToDimension(
-                SPacketBulletVisual.createBullet(
-                        bullet.getId(),
-                        flags,
-                        (flags & SPacketBulletVisual.FLAG_TEXTURE) != 0 ? bullet.getTexture() : null,
-                        (flags & SPacketBulletVisual.FLAG_RENDERER) != 0 ? bullet.getRendererType() : null,
-                        (flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0 ? bullet.getRenderState() : null
-                ),
-                world.provider.getDimension()
-        );
+        syncService.syncBulletVisual(world, bullet, flags);
     }
 
     private static boolean sameVec(Vec3d a, Vec3d b) {

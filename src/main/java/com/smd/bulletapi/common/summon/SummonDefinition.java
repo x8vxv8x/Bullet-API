@@ -30,6 +30,7 @@ public class SummonDefinition {
     private int retargetIntervalTicks = 10;
     private int syncIntervalTicks = 2;
     private int bodyCollisionIntervalTicks = 8;
+    private SummonCommandResponsePolicy commandResponsePolicy = SummonCommandResponsePolicy.STRICT_LOCK;
     private ISummonTargetSelector targetSelector;
     private ISummonMoveController moveController;
     private ISummonAttackPattern attackPattern;
@@ -68,6 +69,7 @@ public class SummonDefinition {
         copy.retargetIntervalTicks = retargetIntervalTicks;
         copy.syncIntervalTicks = syncIntervalTicks;
         copy.bodyCollisionIntervalTicks = bodyCollisionIntervalTicks;
+        copy.commandResponsePolicy = commandResponsePolicy;
         copy.targetSelector = targetSelector;
         copy.moveController = moveController;
         copy.attackPattern = attackPattern;
@@ -118,6 +120,13 @@ public class SummonDefinition {
     public int getBodyCollisionIntervalTicks() { return bodyCollisionIntervalTicks; }
     public SummonDefinition bodyCollisionIntervalTicks(int bodyCollisionIntervalTicks) {
         this.bodyCollisionIntervalTicks = Math.max(0, bodyCollisionIntervalTicks);
+        return this;
+    }
+    public SummonCommandResponsePolicy getCommandResponsePolicy() { return commandResponsePolicy; }
+    public SummonDefinition commandResponsePolicy(SummonCommandResponsePolicy commandResponsePolicy) {
+        this.commandResponsePolicy = commandResponsePolicy == null
+                ? SummonCommandResponsePolicy.STRICT_LOCK
+                : commandResponsePolicy;
         return this;
     }
     public ISummonTargetSelector getTargetSelector() { return targetSelector; }
@@ -261,6 +270,11 @@ public class SummonDefinition {
             return this;
         }
 
+        public Builder commandResponsePolicy(SummonCommandResponsePolicy commandResponsePolicy) {
+            definition.commandResponsePolicy(commandResponsePolicy);
+            return this;
+        }
+
         public Builder targetSelector(ISummonTargetSelector selector) {
             definition.targetSelector(selector);
             return this;
@@ -323,6 +337,7 @@ public class SummonDefinition {
             definition.retargetIntervalTicks(copy.getRetargetIntervalTicks());
             definition.syncIntervalTicks(copy.getSyncIntervalTicks());
             definition.bodyCollisionIntervalTicks(copy.getBodyCollisionIntervalTicks());
+            definition.commandResponsePolicy(copy.getCommandResponsePolicy());
             definition.targetSelector(copy.getTargetSelector());
             definition.moveController(copy.getMoveController());
             definition.attackPattern(copy.getAttackPattern());

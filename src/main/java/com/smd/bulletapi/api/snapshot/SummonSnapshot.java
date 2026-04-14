@@ -2,6 +2,7 @@ package com.smd.bulletapi.api.snapshot;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.summon.SummonState;
+import com.smd.bulletapi.common.summon.SummonTargetSource;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.UUID;
@@ -17,11 +18,12 @@ public final class SummonSnapshot {
     public final float damage;
     public final SummonState state;
     public final int targetEntityId;
+    public final SummonTargetSource targetSource;
     public final int slotCost;
     public final int formationIndex;
 
     public SummonSnapshot(int id, String definitionId, UUID ownerId, Vec3d position, Vec3d velocity,
-                          int life, float damage, SummonState state, int targetEntityId,
+                          int life, float damage, SummonState state, int targetEntityId, SummonTargetSource targetSource,
                           int slotCost, int formationIndex) {
         this.id = id;
         this.definitionId = definitionId;
@@ -32,6 +34,7 @@ public final class SummonSnapshot {
         this.damage = damage;
         this.state = state;
         this.targetEntityId = targetEntityId;
+        this.targetSource = targetSource;
         this.slotCost = slotCost;
         this.formationIndex = formationIndex;
     }
@@ -41,7 +44,7 @@ public final class SummonSnapshot {
         return "SummonSnapshot{id=" + id + ", definitionId='" + definitionId + '\''
                 + ", ownerId=" + ownerId + ", position=" + position + ", velocity=" + velocity
                 + ", life=" + life + ", damage=" + damage + ", state=" + state
-                + ", targetEntityId=" + targetEntityId + ", slotCost=" + slotCost
+                + ", targetEntityId=" + targetEntityId + ", targetSource=" + targetSource + ", slotCost=" + slotCost
                 + ", formationIndex=" + formationIndex + "}";
     }
 }

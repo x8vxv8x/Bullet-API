@@ -4,6 +4,7 @@ import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.summon.SummonCommandResponsePolicy;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonManager;
 import com.smd.bulletapi.common.summon.SummonRegistry;
@@ -147,6 +148,11 @@ public class SummonBuilder {
 
     public SummonBuilder bodyCollisionIntervalTicks(int ticks) {
         resolveDefinitionForMutation().bodyCollisionIntervalTicks(ticks);
+        return this;
+    }
+
+    public SummonBuilder commandResponsePolicy(SummonCommandResponsePolicy commandResponsePolicy) {
+        resolveDefinitionForMutation().commandResponsePolicy(commandResponsePolicy);
         return this;
     }
 

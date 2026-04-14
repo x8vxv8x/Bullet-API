@@ -4,6 +4,7 @@ import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.runtime.ILaserActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.LaserCollisionContext;
+import com.smd.bulletapi.common.runtime.RuntimeObject;
 import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
@@ -16,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @InternalApi
-public class Laser implements ILaserActor {
+public class Laser implements ILaserActor, RuntimeObject {
     private final int id;
     private Vec3d start;
     private Vec3d direction;

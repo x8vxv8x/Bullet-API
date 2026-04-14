@@ -46,22 +46,15 @@ public class RamStrikeMoveController implements ISummonMoveController {
     }
 
     @Override
-    public void tickMovement(SummonContext context) {
+    public void tickNoTargetMovement(SummonContext context) {
         ISummonActor summon = context.summon;
         RamState state = STATES.computeIfAbsent(summon.getId(), ignored -> new RamState());
         state.lastActiveTick = context.worldTick;
         pruneStaleStates(context.worldTick);
         consumeBodyHit(context);
 
-        EntityLivingBase target = context.getTarget();
-        if (target == null || target.isDead) {
-            state.resetCombat();
-            followOwner(context);
-            return;
-        }
-
-        Vec3d current = summon.getPosition();
         Vec3d ownerCenter = context.getOwnerCenter();
+        Vec3d current = summon.getPosition();
         double leashSq = context.definition.getLeashRange() * context.definition.getLeashRange();
         if (current.squareDistanceTo(ownerCenter) > leashSq) {
             state.resetCombat();
@@ -72,6 +65,24 @@ public class RamStrikeMoveController implements ISummonMoveController {
                 summon.setVelocity(summon.getVelocity().scale(idleDamping));
             }
             summon.setState(SummonState.RETURNING);
+            return;
+        }
+
+        state.resetCombat();
+        followOwner(context);
+    }
+
+    @Override
+    public void tickCombatMovement(SummonContext context) {
+        ISummonActor summon = context.summon;
+        RamState state = STATES.computeIfAbsent(summon.getId(), ignored -> new RamState());
+        state.lastActiveTick = context.worldTick;
+        pruneStaleStates(context.worldTick);
+        consumeBodyHit(context);
+
+        EntityLivingBase target = context.getTarget();
+        if (target == null || target.isDead) {
+            tickNoTargetMovement(context);
             return;
         }
 

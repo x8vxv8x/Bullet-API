@@ -5,6 +5,7 @@ import com.smd.bulletapi.api.runtime.ISummonActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonState;
+import com.smd.bulletapi.common.summon.SummonTargetSource;
 import com.smd.bulletapi.server.Bullet;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -24,6 +25,7 @@ public class SummonBullet extends Bullet implements ISummonActor {
     private final SummonDefinition definition;
     private SummonState state = SummonState.IDLE;
     private int targetEntityId = -1;
+    private SummonTargetSource targetSource = SummonTargetSource.NONE;
     private int retargetCooldown;
     private int attackCooldown;
     private int syncCooldown;
@@ -88,7 +90,21 @@ public class SummonBullet extends Bullet implements ISummonActor {
     }
 
     public void setTarget(EntityLivingBase target) {
+        setTarget(target, SummonTargetSource.SCRIPT);
+    }
+
+    @Override
+    public SummonTargetSource getTargetSource() {
+        return targetSource;
+    }
+
+    public void setTarget(EntityLivingBase target, SummonTargetSource source) {
         this.targetEntityId = target == null ? -1 : target.getEntityId();
+        this.targetSource = target == null ? SummonTargetSource.NONE : (source == null ? SummonTargetSource.SCRIPT : source);
+    }
+
+    public void clearTarget() {
+        setTarget(null, SummonTargetSource.NONE);
     }
 
     public boolean shouldRetarget() {

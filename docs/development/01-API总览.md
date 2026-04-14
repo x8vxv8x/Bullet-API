@@ -143,6 +143,7 @@
 
 - `DanmakuManager`
 - `SummonManager`
+- `common.runtime.*`
 - `SummonRegistry`
 - `server.*`
 - `network.*`

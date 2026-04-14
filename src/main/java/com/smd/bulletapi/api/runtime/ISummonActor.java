@@ -3,6 +3,7 @@ package com.smd.bulletapi.api.runtime;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonState;
+import com.smd.bulletapi.common.summon.SummonTargetSource;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
 
@@ -22,6 +23,9 @@ public interface ISummonActor extends IBulletActor {
     EntityLivingBase getTarget(World world);
     int getTargetEntityId();
     void setTarget(EntityLivingBase target);
+    default SummonTargetSource getTargetSource() {
+        return SummonTargetSource.NONE;
+    }
     boolean shouldRetarget();
     void resetRetargetCooldown();
     boolean canAttack();

@@ -6,6 +6,7 @@ import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.RenderStateData;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.runtime.RuntimeObject;
 import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
 import com.smd.bulletapi.spi.bullet.IBulletMotionController;
@@ -18,7 +19,7 @@ import net.minecraft.world.World;
 import java.util.function.Consumer;
 
 @InternalApi
-public class Bullet implements IBulletActor {
+public class Bullet implements IBulletActor, RuntimeObject {
     private final int id;
     private double positionX;
     private double positionY;

@@ -49,7 +49,7 @@ public class TestEvent {
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
 
        if (player.isSneaking() && player.isInWater()) {
-            spawnLaserPolyTest(player);
+            spawnFairyOrbTest(player);
         }
     }
 

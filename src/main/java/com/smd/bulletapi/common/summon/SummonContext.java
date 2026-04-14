@@ -3,6 +3,8 @@ package com.smd.bulletapi.common.summon;
 import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.runtime.ISummonActor;
+import com.smd.bulletapi.common.summon.SummonTargetSource;
+import com.smd.bulletapi.server.summon.SummonBullet;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
@@ -40,6 +42,24 @@ public class SummonContext {
     public void setTarget(EntityLivingBase target) {
         this.target = target;
         summon.setTarget(target);
+    }
+
+    public void setAutoTarget(EntityLivingBase target) {
+        this.target = target;
+        if (summon instanceof SummonBullet) {
+            ((SummonBullet) summon).setTarget(target, SummonTargetSource.AUTO);
+            return;
+        }
+        summon.setTarget(target);
+    }
+
+    public void clearTarget() {
+        this.target = null;
+        if (summon instanceof SummonBullet) {
+            ((SummonBullet) summon).clearTarget();
+            return;
+        }
+        summon.setTarget(null);
     }
 
     public Vec3d getOwnerCenter() {

@@ -5,13 +5,16 @@ import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.snapshot.SummonSnapshot;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
+import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
+import com.smd.bulletapi.common.runtime.summon.SummonOwnershipIndex;
+import com.smd.bulletapi.common.runtime.summon.SummonSnapshotFactory;
+import com.smd.bulletapi.common.runtime.summon.SummonSyncService;
 import com.smd.bulletapi.event.BulletCollisionEvent;
 import com.smd.bulletapi.event.lifecycle.LifecycleRemoveReason;
 import com.smd.bulletapi.event.lifecycle.SummonRemoveEvent;
 import com.smd.bulletapi.event.lifecycle.SummonSpawnEvent;
 import com.smd.bulletapi.event.lifecycle.SummonStateChangedEvent;
 import com.smd.bulletapi.event.lifecycle.SummonTargetChangedEvent;
-import com.smd.bulletapi.network.PacketHandler;
 import com.smd.bulletapi.network.SPacketBulletVisual;
 import com.smd.bulletapi.network.SPacketSummon;
 import com.smd.bulletapi.server.summon.SummonBullet;
@@ -35,9 +38,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,8 +52,11 @@ public class SummonManager {
     private static final double SNAPSHOT_POS_EPS_SQ = 0.05D * 0.05D;
     private static final double SNAPSHOT_VEL_EPS_SQ = 0.02D * 0.02D;
 
-    private final Map<World, Map<Integer, SummonBullet>> worldSummons = new HashMap<>();
-    private final Map<UUID, LinkedHashSet<OwnedSummonRef>> ownerSummons = new HashMap<>();
+    private final WorldRuntimeStore<SummonBullet> summonStore = new WorldRuntimeStore<>();
+    private final SummonOwnershipIndex ownershipIndex = new SummonOwnershipIndex();
+    private final SummonSnapshotFactory snapshotFactory = new SummonSnapshotFactory();
+    private final SummonSyncService syncService = new SummonSyncService();
+    private final Map<UUID, OwnerCommandTarget> ownerCommandTargets = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1000000);
     private final SummonSlotManager slotManager = new SummonSlotManager();
     private final List<SummonBullet> tickSummonsScratch = new ArrayList<>();
@@ -90,7 +96,7 @@ public class SummonManager {
         int formationIndex = getOwnedSummonCount(owner.getUniqueID());
         Vec3d spawnPos = position == null ? getDefaultSpawnPosition(owner, definition) : position;
         SummonBullet summon = new SummonBullet(id, spawnPos, new Vec3d(0, 0, 0), definition, owner, formationIndex, world.getTotalWorldTime());
-        getWorldMap(world).put(id, summon);
+        summonStore.put(world, summon);
         indexSummon(world, summon);
         MinecraftForge.EVENT_BUS.post(new SummonSpawnEvent(world, createSummonSnapshot(summon)));
         sendSpawn(world, summon);
@@ -102,61 +108,33 @@ public class SummonManager {
     }
 
     public void removeSummon(World world, int id, LifecycleRemoveReason reason) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null) return;
-        SummonBullet summon = map.remove(id);
+        SummonBullet summon = summonStore.remove(world, id);
         if (summon == null) return;
         deindexSummon(world, summon);
         cleanupSummonActors(world, summon);
         releaseSlots(summon, world);
         MinecraftForge.EVENT_BUS.post(new SummonRemoveEvent(world, createSummonSnapshot(summon), reason));
-        PacketHandler.sendToDimension(SPacketSummon.createRemove(id), world.provider.getDimension());
+        syncService.sendRemove(world, id);
     }
 
     public boolean hasSummon(World world, int id) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null) return false;
-        SummonBullet summon = map.get(id);
-        return summon != null && !summon.isDead();
+        return summonStore.hasLive(world, id);
     }
 
     public SummonSnapshot getSummonSnapshot(World world, int id) {
-        SummonBullet summon = getLiveSummon(world, id);
-        return summon == null ? null : createSummonSnapshot(summon);
+        return summonStore.getLiveSnapshot(world, id, snapshotFactory);
     }
 
     public int getSummonCount(World world) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null) return 0;
-        int count = 0;
-        for (SummonBullet summon : map.values()) {
-            if (!summon.isDead()) count++;
-        }
-        return count;
+        return summonStore.countLive(world);
     }
 
     public List<Integer> getSummonIds(World world) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null || map.isEmpty()) return Collections.emptyList();
-        List<Integer> ids = new ArrayList<>();
-        for (Map.Entry<Integer, SummonBullet> entry : map.entrySet()) {
-            if (!entry.getValue().isDead()) {
-                ids.add(entry.getKey());
-            }
-        }
-        return ids;
+        return summonStore.getLiveIds(world);
     }
 
     public List<SummonSnapshot> getSummonSnapshots(World world) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null || map.isEmpty()) return Collections.emptyList();
-        List<SummonSnapshot> snapshots = new ArrayList<>();
-        for (SummonBullet summon : map.values()) {
-            if (!summon.isDead()) {
-                snapshots.add(createSummonSnapshot(summon));
-            }
-        }
-        return snapshots;
+        return summonStore.getLiveSnapshots(world, snapshotFactory);
     }
 
     public List<SummonSnapshot> getOwnedSummonSnapshots(World world, UUID ownerId) {
@@ -166,7 +144,7 @@ public class SummonManager {
         List<SummonSnapshot> snapshots = new ArrayList<>();
         for (SummonBullet summon : owned) {
             if (!summon.isDead() && getLiveSummon(world, summon.getId()) == summon) {
-                snapshots.add(createSummonSnapshot(summon));
+                snapshots.add(snapshotFactory.create(summon));
             }
         }
         return snapshots;
@@ -235,17 +213,7 @@ public class SummonManager {
     public void updateSummonTarget(World world, int id, EntityLivingBase target) {
         SummonBullet summon = getLiveSummon(world, id);
         if (summon == null) return;
-        int previousTargetId = summon.getTargetEntityId();
-        summon.setTarget(target);
-        summon.resetRetargetCooldown();
-        if (previousTargetId != summon.getTargetEntityId()) {
-            MinecraftForge.EVENT_BUS.post(new SummonTargetChangedEvent(
-                    world,
-                    new SummonHandle(world, summon.getId()),
-                    previousTargetId,
-                    summon.getTargetEntityId()
-            ));
-        }
+        updateOwnerCommandTarget(summon.getOwnerId(), world, target, world.getTotalWorldTime(), world.rand);
     }
 
     public void updateSummonState(World world, int id, SummonState state) {
@@ -275,9 +243,9 @@ public class SummonManager {
         int previousTargetId = summon.getTargetEntityId();
         SummonContext context = createContext(world, summon, owner, world.getTotalWorldTime());
         if (summon.getDefinition().getTargetSelector() != null) {
-            context.setTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
+            context.setAutoTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
         } else {
-            context.setTarget(null);
+            context.clearTarget();
         }
         summon.resetRetargetCooldown();
         if (previousTargetId != summon.getTargetEntityId()) {
@@ -295,7 +263,7 @@ public class SummonManager {
         if (summon == null) return;
         int previousTargetId = summon.getTargetEntityId();
         SummonState previousState = summon.getState();
-        summon.setTarget(null);
+        summon.clearTarget();
         summon.resetRetargetCooldown();
         summon.setState(SummonState.RETURNING);
         emitStateChanges(world, summon, previousState, previousTargetId);
@@ -347,39 +315,29 @@ public class SummonManager {
     }
 
     public List<SummonBullet> getOwnedSummons(UUID ownerId) {
-        if (ownerId == null) return Collections.emptyList();
-        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
-        if (refs == null || refs.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<SummonBullet> summons = new ArrayList<>(refs.size());
-        for (OwnedSummonRef ref : refs) {
-            summons.add(ref.summon);
-        }
-        return summons;
+        return ownershipIndex.getOwnedSummons(ownerId, summonStore);
     }
 
     public int getOwnedSummonCount(UUID ownerId) {
-        if (ownerId == null) return 0;
-        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
-        return refs == null ? 0 : refs.size();
+        return ownershipIndex.getOwnedSummonCount(ownerId, summonStore);
     }
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerLoggedOutEvent event) {
+        ownerCommandTargets.remove(event.player.getUniqueID());
         removeOwnedSummons(event.player.getUniqueID(), LifecycleRemoveReason.PLAYER_LOGOUT);
     }
 
     @SubscribeEvent
     public void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+        ownerCommandTargets.remove(event.player.getUniqueID());
         removeOwnedSummons(event.player.getUniqueID(), LifecycleRemoveReason.DIMENSION_CHANGE);
     }
 
     @SubscribeEvent
     public void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.world.isRemote || event.phase != TickEvent.Phase.END) return;
-        Map<Integer, SummonBullet> summonMap = worldSummons.get(event.world);
+        Map<Integer, SummonBullet> summonMap = summonStore.getWorldEntries(event.world);
         if (summonMap == null || summonMap.isEmpty()) return;
 
         tickSummonsScratch.clear();
@@ -388,7 +346,7 @@ public class SummonManager {
         Set<UUID> reconciledOwners = new HashSet<>();
         for (SummonBullet summon : tickSummonsScratch) {
             if (summon.isDead()) continue;
-            if (summonMap.get(summon.getId()) != summon) continue;
+            if (!summonStore.isCurrent(event.world, summon.getId(), summon)) continue;
 
             EntityLivingBase owner = summon.getOwnerEntity(event.world);
             if (owner == null || owner.isDead) {
@@ -399,7 +357,7 @@ public class SummonManager {
             if (owner instanceof EntityPlayer && reconciledOwners.add(owner.getUniqueID())) {
                 reconcileOwnerSummons((EntityPlayer) owner);
             }
-            if (summon.isDead() || summonMap.get(summon.getId()) != summon) {
+            if (summon.isDead() || !summonStore.isCurrent(event.world, summon.getId(), summon)) {
                 continue;
             }
 
@@ -407,18 +365,22 @@ public class SummonManager {
             int previousTargetId = summon.getTargetEntityId();
 
             summon.tickCooldowns();
-            EntityLivingBase target = summon.getTarget(event.world);
-            if (target == null || target.isDead || target.getDistanceSq(owner) > summon.getDefinition().getFollowRange() * summon.getDefinition().getFollowRange()) {
-                target = null;
-            }
+            boolean forcedRecovery = isOutsideLeash(owner, summon);
+            EntityLivingBase ownerCommandTarget = resolveOwnerCommandTarget(event.world, owner.getUniqueID());
+            syncOwnerCommandTarget(owner, summon, ownerCommandTarget, forcedRecovery);
+            EntityLivingBase target = resolveTrackedTarget(event.world, owner, summon, forcedRecovery);
 
             SummonContext context = new SummonContext(this, event.world, summon, owner, summon.getDefinition(), worldTick, target);
-            if (summon.shouldRetarget() && summon.getDefinition().getTargetSelector() != null) {
-                context.setTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
+            if (context.getTarget() == null && summon.shouldRetarget() && summon.getDefinition().getTargetSelector() != null) {
+                context.setAutoTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
                 summon.resetRetargetCooldown();
             }
             if (summon.getDefinition().getMoveController() != null) {
-                summon.getDefinition().getMoveController().tickMovement(context);
+                if (context.getTarget() == null) {
+                    summon.getDefinition().getMoveController().tickNoTargetMovement(context);
+                } else {
+                    summon.getDefinition().getMoveController().tickCombatMovement(context);
+                }
             }
             summon.update(event.world);
             handleSummonBodyCollision(summon, event.world, worldTick);
@@ -453,7 +415,7 @@ public class SummonManager {
 
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
-        Map<Integer, SummonBullet> removed = worldSummons.remove(event.getWorld());
+        Map<Integer, SummonBullet> removed = summonStore.removeWorld(event.getWorld());
         if (removed == null) return;
         for (SummonBullet summon : removed.values()) {
             deindexSummon(event.getWorld(), summon);
@@ -463,27 +425,16 @@ public class SummonManager {
         }
     }
 
-    private Map<Integer, SummonBullet> getWorldMap(World world) {
-        return worldSummons.computeIfAbsent(world, ignored -> new HashMap<>());
-    }
-
     private Vec3d getDefaultSpawnPosition(EntityLivingBase owner, SummonDefinition definition) {
         return owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + definition.getIdleHeight(), 0);
     }
 
     private void sendSpawn(World world, SummonBullet summon) {
-        PacketHandler.sendToDimension(SPacketSummon.createSpawn(summon), world.provider.getDimension());
+        syncService.sendSpawn(world, summon);
     }
 
     private void sendSnapshot(World world, SummonBullet summon, int flags) {
-        if (flags == 0) return;
-        PacketHandler.sendToDimension(SPacketSummon.createSnapshot(
-                summon.getId(),
-                flags,
-                (flags & SPacketSummon.FLAG_POSITION) != 0 ? summon.getPosition() : null,
-                (flags & SPacketSummon.FLAG_VELOCITY) != 0 ? summon.getVelocity() : null,
-                (flags & SPacketSummon.FLAG_LIFE) != 0 ? summon.getLife() : null
-        ), world.provider.getDimension());
+        syncService.sendSnapshot(world, summon, flags);
     }
 
     private void emitStateChanges(World world, SummonBullet summon, SummonState previousState, int previousTargetId) {
@@ -532,22 +483,145 @@ public class SummonManager {
 
     private void removeOwnedSummons(UUID ownerId, LifecycleRemoveReason reason) {
         if (ownerId == null) return;
-        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(ownerId);
-        if (refs == null || refs.isEmpty()) return;
-
-        List<OwnedSummonRef> removeRefs = new ArrayList<>(refs);
-        for (OwnedSummonRef ref : removeRefs) {
+        List<SummonOwnershipIndex.OwnedSummonRef> removeRefs = ownershipIndex.collectOwnedRefs(ownerId, summonStore);
+        for (SummonOwnershipIndex.OwnedSummonRef ref : removeRefs) {
             removeSummon(ref.world, ref.summonId, reason);
         }
     }
 
+    private EntityLivingBase resolveTrackedTarget(World world, EntityLivingBase owner, SummonBullet summon, boolean forcedRecovery) {
+        if (forcedRecovery) {
+            summon.clearTarget();
+            return null;
+        }
+
+        EntityLivingBase target = summon.getTarget(world);
+        if (!isValidTrackedTarget(owner, summon, target)) {
+            summon.clearTarget();
+            return null;
+        }
+
+        if (summon.getTargetSource() == SummonTargetSource.COMMAND && !canAcceptCommandTarget(owner, summon, target)) {
+            summon.clearTarget();
+            return null;
+        }
+        return target;
+    }
+
+    private void syncOwnerCommandTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase ownerCommandTarget, boolean forcedRecovery) {
+        if (summon == null) return;
+
+        if (forcedRecovery || ownerCommandTarget == null || !canAcceptCommandTarget(owner, summon, ownerCommandTarget)) {
+            if (summon.getTargetSource() == SummonTargetSource.COMMAND) {
+                summon.clearTarget();
+            }
+            return;
+        }
+
+        if (summon.getTargetSource() == SummonTargetSource.COMMAND
+                && summon.getTargetEntityId() == ownerCommandTarget.getEntityId()) {
+            return;
+        }
+        summon.setTarget(ownerCommandTarget, SummonTargetSource.COMMAND);
+    }
+
+    private boolean isValidTrackedTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase target) {
+        if (target == null || target.isDead) {
+            return false;
+        }
+        double followRangeSq = summon.getDefinition().getFollowRange() * summon.getDefinition().getFollowRange();
+        return target.getDistanceSq(owner) <= followRangeSq;
+    }
+
+    private boolean canAcceptCommandTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase target) {
+        if (owner == null || summon == null || target == null) {
+            return false;
+        }
+        if (!allowsCommandResponse(summon)) {
+            return false;
+        }
+        double followRangeSq = summon.getDefinition().getFollowRange() * summon.getDefinition().getFollowRange();
+        return target.getDistanceSq(owner) <= followRangeSq;
+    }
+
+    private boolean allowsCommandResponse(SummonBullet summon) {
+        SummonCommandResponsePolicy policy = summon.getDefinition().getCommandResponsePolicy();
+        if (policy == null) {
+            return true;
+        }
+
+        switch (policy) {
+            case IGNORE_COMMAND:
+                return false;
+            case COMBAT_ONLY:
+                return summon.getState() == SummonState.CHASING_TARGET
+                        || summon.getState() == SummonState.ATTACKING;
+            case STRICT_LOCK:
+            default:
+                return true;
+        }
+    }
+
+    private boolean isOutsideLeash(EntityLivingBase owner, SummonBullet summon) {
+        if (owner == null || summon == null) {
+            return false;
+        }
+        double leashRange = summon.getDefinition().getLeashRange();
+        return summon.getPosition().squareDistanceTo(owner.getPositionVector()) > leashRange * leashRange;
+    }
+
+    private void updateOwnerCommandTarget(UUID ownerId, World world, EntityLivingBase target, long worldTick, Random random) {
+        if (ownerId == null) return;
+        if (target == null) {
+            ownerCommandTargets.remove(ownerId);
+            return;
+        }
+
+        OwnerCommandTarget command = ownerCommandTargets.computeIfAbsent(ownerId, ignored -> new OwnerCommandTarget());
+        if (command.commandTick != worldTick) {
+            command.commandTick = worldTick;
+            command.dimension = world.provider.getDimension();
+            command.targetEntityId = target.getEntityId();
+            command.candidateCount = 1;
+            return;
+        }
+
+        command.candidateCount = Math.max(1, command.candidateCount) + 1;
+        if (random != null && random.nextInt(command.candidateCount) != 0) {
+            return;
+        }
+        command.dimension = world.provider.getDimension();
+        command.targetEntityId = target.getEntityId();
+    }
+
+    private EntityLivingBase resolveOwnerCommandTarget(World world, UUID ownerId) {
+        if (world == null || ownerId == null) {
+            return null;
+        }
+
+        OwnerCommandTarget command = ownerCommandTargets.get(ownerId);
+        if (command == null) {
+            return null;
+        }
+        if (command.dimension != world.provider.getDimension()) {
+            return null;
+        }
+
+        net.minecraft.entity.Entity entity = world.getEntityByID(command.targetEntityId);
+        if (!(entity instanceof EntityLivingBase) || entity.isDead) {
+            ownerCommandTargets.remove(ownerId);
+            return null;
+        }
+        return (EntityLivingBase) entity;
+    }
+
     private void reconcileOwnerSummons(UUID ownerId, int maxSlots) {
         if (ownerId == null) return;
-        List<OwnedSummonRef> ownedSummons = collectOwnedSummons(ownerId);
+        List<SummonOwnershipIndex.OwnedSummonRef> ownedSummons = ownershipIndex.collectOwnedRefs(ownerId, summonStore);
         if (ownedSummons.isEmpty()) return;
 
         int used = 0;
-        for (OwnedSummonRef ref : ownedSummons) {
+        for (SummonOwnershipIndex.OwnedSummonRef ref : ownedSummons) {
             used += Math.max(0, ref.summon.getSlotCost());
         }
         if (used <= maxSlots) return;
@@ -557,45 +631,12 @@ public class SummonManager {
             if (byTick != 0) return byTick;
             return Integer.compare(b.summon.getId(), a.summon.getId());
         });
-        for (OwnedSummonRef ref : ownedSummons) {
+        for (SummonOwnershipIndex.OwnedSummonRef ref : ownedSummons) {
             if (used <= maxSlots) break;
             if (ref.summon.isDead()) continue;
             used -= Math.max(0, ref.summon.getSlotCost());
             removeSummon(ref.world, ref.summon.getId(), LifecycleRemoveReason.SLOT_RECONCILE);
         }
-    }
-
-    private List<OwnedSummonRef> collectOwnedSummons(UUID ownerId) {
-        LinkedHashSet<OwnedSummonRef> refs = getLiveOwnerRefs(ownerId);
-        if (refs == null || refs.isEmpty()) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(refs);
-    }
-
-    private LinkedHashSet<OwnedSummonRef> getLiveOwnerRefs(UUID ownerId) {
-        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(ownerId);
-        if (refs == null || refs.isEmpty()) {
-            return refs;
-        }
-
-        List<OwnedSummonRef> staleRefs = null;
-        for (OwnedSummonRef ref : refs) {
-            Map<Integer, SummonBullet> worldMap = worldSummons.get(ref.world);
-            SummonBullet summon = worldMap == null ? null : worldMap.get(ref.summonId);
-            if (summon == null || summon.isDead()) {
-                if (staleRefs == null) staleRefs = new ArrayList<>();
-                staleRefs.add(ref);
-            }
-        }
-
-        if (staleRefs != null) {
-            refs.removeAll(staleRefs);
-            if (refs.isEmpty()) {
-                ownerSummons.remove(ownerId);
-            }
-        }
-        return refs;
     }
 
     private void handleSummonBodyCollision(SummonBullet summon, World world, long worldTick) {
@@ -651,19 +692,7 @@ public class SummonManager {
     }
 
     private SummonSnapshot createSummonSnapshot(SummonBullet summon) {
-        return new SummonSnapshot(
-                summon.getId(),
-                summon.getDefinitionId(),
-                summon.getOwnerId(),
-                summon.getPosition(),
-                summon.getVelocity(),
-                summon.getLife(),
-                summon.getDamage(),
-                summon.getState(),
-                summon.getTargetEntityId(),
-                summon.getSlotCost(),
-                summon.getFormationIndex()
-        );
+        return snapshotFactory.create(summon);
     }
 
     private int getSnapshotFlags(SummonBullet summon, long worldTick) {
@@ -692,10 +721,7 @@ public class SummonManager {
     }
 
     private SummonBullet getLiveSummon(World world, int id) {
-        Map<Integer, SummonBullet> map = worldSummons.get(world);
-        if (map == null) return null;
-        SummonBullet summon = map.get(id);
-        return summon == null || summon.isDead() ? null : summon;
+        return summonStore.getLive(world, id);
     }
 
     private SummonContext createContext(World world, SummonBullet summon, EntityLivingBase owner, long worldTick) {
@@ -715,25 +741,16 @@ public class SummonManager {
             removeSummon(world, summon.getId(), LifecycleRemoveReason.API_REQUEST);
             return;
         }
-        sendSnapshot(world, summon, flags);
+        syncService.sendSnapshot(world, summon, flags);
         summon.markSynced(world.getTotalWorldTime());
         summon.resetSyncCooldown();
     }
 
     private void syncSummonVisual(World world, SummonBullet summon, int flags) {
-        if (summon == null || flags == 0) {
+        if (summon == null) {
             return;
         }
-        PacketHandler.sendToDimension(
-                SPacketBulletVisual.createSummon(
-                        summon.getId(),
-                        flags,
-                        (flags & SPacketBulletVisual.FLAG_TEXTURE) != 0 ? summon.getTexture() : null,
-                        (flags & SPacketBulletVisual.FLAG_RENDERER) != 0 ? summon.getRendererType() : null,
-                        (flags & SPacketBulletVisual.FLAG_RENDER_STATE) != 0 ? summon.getRenderState() : null
-                ),
-                world.provider.getDimension()
-        );
+        syncService.sendVisual(world, summon, flags);
     }
 
     private void updateSummonRuntime(World world, int id, Consumer<NBTTagCompound> mutation) {
@@ -758,46 +775,17 @@ public class SummonManager {
     }
 
     private void indexSummon(World world, SummonBullet summon) {
-        if (world == null || summon == null) return;
-        ownerSummons
-                .computeIfAbsent(summon.getOwnerId(), ignored -> new LinkedHashSet<>())
-                .add(new OwnedSummonRef(world, summon));
+        ownershipIndex.index(world, summon);
     }
 
     private void deindexSummon(World world, SummonBullet summon) {
-        if (world == null || summon == null) return;
-        LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(summon.getOwnerId());
-        if (refs == null) return;
-        refs.remove(new OwnedSummonRef(world, summon));
-        if (refs.isEmpty()) {
-            ownerSummons.remove(summon.getOwnerId());
-        }
+        ownershipIndex.deindex(world, summon);
     }
 
-    private static class OwnedSummonRef {
-        private final World world;
-        private final int summonId;
-        private final SummonBullet summon;
-
-        private OwnedSummonRef(World world, SummonBullet summon) {
-            this.world = world;
-            this.summonId = summon.getId();
-            this.summon = summon;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof OwnedSummonRef)) return false;
-            OwnedSummonRef other = (OwnedSummonRef) obj;
-            return this.world == other.world && this.summonId == other.summonId;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = System.identityHashCode(world);
-            result = 31 * result + summonId;
-            return result;
-        }
+    private static final class OwnerCommandTarget {
+        private int targetEntityId = -1;
+        private int dimension;
+        private long commandTick = Long.MIN_VALUE;
+        private int candidateCount;
     }
 }
