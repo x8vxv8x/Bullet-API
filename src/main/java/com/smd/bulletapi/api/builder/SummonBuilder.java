@@ -201,8 +201,12 @@ public class SummonBuilder {
     }
 
     public SummonHandle spawnHandle() {
-        if (world.isRemote) throw new IllegalStateException("Cannot spawn summon on client side");
-        if (owner == null) throw new IllegalStateException("Summon owner must be set");
+        if (world.isRemote) {
+            throw new IllegalStateException("Cannot spawn summon on client side");
+        }
+        if (owner == null) {
+            throw new IllegalStateException("Summon owner must be set");
+        }
         int id = SummonManager.getInstance().spawnSummon(world, owner, resolveDefinition(), position);
         return new SummonHandle(world, id);
     }

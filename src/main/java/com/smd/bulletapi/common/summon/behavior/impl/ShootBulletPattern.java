@@ -34,14 +34,22 @@ public class ShootBulletPattern implements ISummonAttackPattern {
     @Override
     public void tickAttack(SummonContext context) {
         EntityLivingBase target = context.getTarget();
-        if (target == null || target.isDead) return;
-        if (!context.summon.canAttack()) return;
+        if (target == null || target.isDead) {
+            return;
+        }
+        if (!context.summon.canAttack()) {
+            return;
+        }
         Vec3d spawnPos = context.summon.getPosition();
-        if (target.getDistanceSq(spawnPos.x, spawnPos.y, spawnPos.z) > context.definition.getAttackRange() * context.definition.getAttackRange()) return;
+        if (target.getDistanceSq(spawnPos.x, spawnPos.y, spawnPos.z) > context.definition.getAttackRange() * context.definition.getAttackRange()) {
+            return;
+        }
 
         Vec3d targetPos = context.getTargetCenter();
         Vec3d direction = targetPos.subtract(spawnPos);
-        if (direction.lengthSquared() < 1.0E-6) return;
+        if (direction.lengthSquared() < 1.0E-6) {
+            return;
+        }
 
         BulletApi.builder(context.world)
                 .position(spawnPos)

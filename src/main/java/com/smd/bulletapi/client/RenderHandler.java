@@ -56,7 +56,9 @@ public class RenderHandler {
         if (hasBullets || hasSummons) {
             if (hasBullets) {
                 for (ClientBullet bullet : cache.getBullets().values()) {
-                    if (bullet.isDead()) continue;
+                    if (bullet.isDead()) {
+                        continue;
+                    }
                     IBulletRenderer renderer = bullet.getRenderer();
                     if (renderer != null) {
                         acquireBulletGroup(renderer).add(bullet);
@@ -65,7 +67,9 @@ public class RenderHandler {
             }
             if (hasSummons) {
                 for (ClientBullet bullet : summonCache.getSummons().values()) {
-                    if (bullet.isDead()) continue;
+                    if (bullet.isDead()) {
+                        continue;
+                    }
                     IBulletRenderer renderer = bullet.getRenderer();
                     if (renderer != null) {
                         acquireBulletGroup(renderer).add(bullet);
@@ -87,7 +91,9 @@ public class RenderHandler {
             for (Map.Entry<IBulletRenderer, List<ClientBullet>> entry : RENDER_GROUPS.entrySet()) {
                 IBulletRenderer renderer = entry.getKey();
                 List<ClientBullet> bullets = entry.getValue();
-                if (bullets.isEmpty()) continue;
+                if (bullets.isEmpty()) {
+                    continue;
+                }
 
                 renderer.beginRender();
                 try {
@@ -119,7 +125,9 @@ public class RenderHandler {
             for (Map.Entry<ILaserRenderer, List<ClientLaser>> entry : LASER_GROUPS.entrySet()) {
                 ILaserRenderer renderer = entry.getKey();
                 List<ClientLaser> lasers = entry.getValue();
-                if (lasers.isEmpty()) continue;
+                if (lasers.isEmpty()) {
+                    continue;
+                }
                 renderer.beginRender();
                 try {
                     if (renderer.canBatch()) {

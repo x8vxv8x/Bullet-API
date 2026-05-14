@@ -54,7 +54,9 @@ public class WorldRuntimeStore<T extends RuntimeObject> {
 
     public int countLive(World world) {
         Map<Integer, T> entries = worldEntries.get(world);
-        if (entries == null) return 0;
+        if (entries == null) {
+            return 0;
+        }
 
         int count = 0;
         for (T runtime : entries.values()) {

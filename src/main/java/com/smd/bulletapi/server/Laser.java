@@ -86,7 +86,9 @@ public class Laser implements ILaserActor, RuntimeObject {
     }
 
     public void update(World world) {
-        if (dead) return;
+        if (dead) {
+            return;
+        }
         if (shooter != null && shooter.isDead) {
             dead = true;
             return;
@@ -103,7 +105,9 @@ public class Laser implements ILaserActor, RuntimeObject {
         }
         if (life > 0) {
             life--;
-            if (life <= 0) dead = true;
+            if (life <= 0) {
+                dead = true;
+            }
         }
     }
 
@@ -114,7 +118,9 @@ public class Laser implements ILaserActor, RuntimeObject {
     }
 
     public boolean canTrigger(EntityLivingBase entity, long worldTick) {
-        if (eventIntervalTicks <= 0) return true;
+        if (eventIntervalTicks <= 0) {
+            return true;
+        }
         Long last = lastHitTick.get(entity.getEntityId());
         return last == null || worldTick - last >= eventIntervalTicks;
     }
@@ -131,14 +137,19 @@ public class Laser implements ILaserActor, RuntimeObject {
         this.syncBaselineLength = this.currentLength;
     }
 
+    @Override
     public int getId() { return id; }
+    @Override
     public Vec3d getStart() { return start; }
     public Vec3d getSyncBaselineStart() { return syncBaselineStart; }
+    @Override
     public void setStart(Vec3d start) {
         this.start = start == null ? new Vec3d(0, 0, 0) : start;
     }
+    @Override
     public Vec3d getDirection() { return direction; }
     public Vec3d getSyncBaselineDirection() { return syncBaselineDirection; }
+    @Override
     public void setDirection(Vec3d direction) {
         if (direction == null || direction.lengthSquared() < 1.0E-6) {
             this.direction = new Vec3d(0, 0, 1);
@@ -146,35 +157,56 @@ public class Laser implements ILaserActor, RuntimeObject {
         }
         this.direction = direction.normalize();
     }
+    @Override
     public double getMaxLength() { return maxLength; }
+    @Override
     public double getCurrentLength() { return currentLength; }
     public double getSyncBaselineLength() { return syncBaselineLength; }
+    @Override
     public void setCurrentLength(double length) { this.currentLength = length; }
+    @Override
     public float getThickness() { return thickness; }
+    @Override
     public float getDamage() { return damage; }
+    @Override
     public boolean isDead() { return dead; }
+    @Override
     public boolean isPenetrate() { return penetrate; }
+    @Override
     public boolean isFollowShooter() { return followShooter; }
+    @Override
     public boolean isOnlyPlayer() { return onlyPlayer; }
+    @Override
     public boolean isBlockStops() { return blockStops; }
     public Vec3d getStartOffset() { return startOffset; }
     public Vec3d getStartOffsetLocal() { return startOffsetLocal; }
+    @Override
     public int getEventIntervalTicks() { return eventIntervalTicks; }
+    @Override
     public int getColor() { return color; }
+    @Override
     public String getRendererType() { return rendererType; }
+    @Override
     public NBTTagCompound getCustomData() { return customData; }
     public ILaserHitBehavior getHitBehavior() { return hitBehavior; }
     public ILaserCollisionFilter getCollisionFilter() { return collisionFilter; }
+    @Override
     public EntityLivingBase getShooter() { return shooter; }
+    @Override
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+    @Override
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
     public String getRenderPresetId() { return renderPresetId; }
+    @Override
     public void markDead() { this.dead = true; }
+    @Override
     public int getLife() { return life; }
     public void setLife(int life) { this.life = life; }
 
     private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {
-        if (local == null) return new Vec3d(0, 0, 0);
+        if (local == null) {
+            return new Vec3d(0, 0, 0);
+        }
         Vec3d upRef = new Vec3d(0, 1, 0);
         Vec3d right = forward.crossProduct(upRef);
         if (right.lengthSquared() < 1.0E-6) {

@@ -21,7 +21,9 @@ public final class BulletEmitters {
     public static List<BulletHandle> ring(World world, Vec3d center, int count, double speed,
                                           Consumer<BulletBuilder> configure) {
         List<BulletHandle> handles = new ArrayList<>();
-        if (world == null || center == null || count <= 0) return handles;
+        if (world == null || center == null || count <= 0) {
+            return handles;
+        }
 
         for (int i = 0; i < count; i++) {
             double angle = (Math.PI * 2.0D) * i / count;
@@ -35,7 +37,9 @@ public final class BulletEmitters {
                                          double spreadRadians, double speed,
                                          Consumer<BulletBuilder> configure) {
         List<BulletHandle> handles = new ArrayList<>();
-        if (world == null || origin == null || direction == null || count <= 0) return handles;
+        if (world == null || origin == null || direction == null || count <= 0) {
+            return handles;
+        }
 
         Vec3d forward = normalize(direction);
         Vec3d right = forward.crossProduct(new Vec3d(0, 1, 0));
@@ -55,7 +59,9 @@ public final class BulletEmitters {
     public static List<BulletHandle> line(World world, Vec3d start, Vec3d step, Vec3d velocity, int count,
                                           Consumer<BulletBuilder> configure) {
         List<BulletHandle> handles = new ArrayList<>();
-        if (world == null || start == null || step == null || velocity == null || count <= 0) return handles;
+        if (world == null || start == null || step == null || velocity == null || count <= 0) {
+            return handles;
+        }
 
         for (int i = 0; i < count; i++) {
             handles.add(spawn(world, start.add(step.scale(i)), velocity, configure));
@@ -66,7 +72,9 @@ public final class BulletEmitters {
     public static List<BulletHandle> burst(World world, Vec3d origin, int count, double minSpeed, double maxSpeed,
                                            Consumer<BulletBuilder> configure) {
         List<BulletHandle> handles = new ArrayList<>();
-        if (world == null || origin == null || count <= 0) return handles;
+        if (world == null || origin == null || count <= 0) {
+            return handles;
+        }
 
         for (int i = 0; i < count; i++) {
             Vec3d dir = new Vec3d(RANDOM.nextDouble() * 2.0D - 1.0D,

@@ -55,7 +55,9 @@ public class ClientBullet {
     }
 
     public void tick() {
-        if (dead) return;
+        if (dead) {
+            return;
+        }
         prevPositionX = positionX;
         prevPositionY = positionY;
         prevPositionZ = positionZ;
@@ -63,7 +65,9 @@ public class ClientBullet {
         positionY += velocityY;
         positionZ += velocityZ;
         life--;
-        if (life <= 0) dead = true;
+        if (life <= 0) {
+            dead = true;
+        }
     }
 
     public Vec3d getRenderPosition(float partialTicks) {

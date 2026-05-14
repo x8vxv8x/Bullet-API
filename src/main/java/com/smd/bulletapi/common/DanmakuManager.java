@@ -43,7 +43,6 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,7 +79,9 @@ public class DanmakuManager {
                            IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
                            EntityLivingBase shooter, ItemStack shooterHeldItem,
                            AttackSourceInfo attackSourceInfo, String renderPresetId) {
-        if (world.isRemote) return -1;
+        if (world.isRemote) {
+            return -1;
+        }
         int id = nextId.getAndIncrement();
         Bullet bullet = new Bullet(id, position, velocity, life, damage,
                 texture, color, size, rendererType, customData,
@@ -98,7 +99,9 @@ public class DanmakuManager {
 
     public void removeBullet(World world, int id, LifecycleRemoveReason reason) {
         Bullet removed = bulletStore.remove(world, id);
-        if (removed == null) return;
+        if (removed == null) {
+            return;
+        }
 
         MinecraftForge.EVENT_BUS.post(new BulletRemoveEvent(world, createBulletSnapshot(removed), reason));
         syncService.sendBulletRemove(world, id);
@@ -106,21 +109,27 @@ public class DanmakuManager {
 
     public void updateBulletVelocity(World world, int id, Vec3d newVelocity) {
         Bullet bullet = getLiveBullet(world, id);
-        if (bullet == null) return;
+        if (bullet == null) {
+            return;
+        }
         bullet.setVelocity(newVelocity);
         syncBullet(world, bullet, SPacketDanmaku.FLAG_VELOCITY);
     }
 
     public void updateBulletPosition(World world, int id, Vec3d newPosition) {
         Bullet bullet = getLiveBullet(world, id);
-        if (bullet == null) return;
+        if (bullet == null) {
+            return;
+        }
         bullet.setPosition(newPosition);
         syncBullet(world, bullet, SPacketDanmaku.FLAG_POSITION);
     }
 
     public void updateBulletMotion(World world, int id, Vec3d newPosition, Vec3d newVelocity) {
         Bullet bullet = getLiveBullet(world, id);
-        if (bullet == null) return;
+        if (bullet == null) {
+            return;
+        }
         bullet.setPosition(newPosition);
         bullet.setVelocity(newVelocity);
         syncBullet(world, bullet, SPacketDanmaku.FLAG_POSITION | SPacketDanmaku.FLAG_VELOCITY);
@@ -128,7 +137,9 @@ public class DanmakuManager {
 
     public void updateBulletLife(World world, int id, int life) {
         Bullet bullet = getLiveBullet(world, id);
-        if (bullet == null) return;
+        if (bullet == null) {
+            return;
+        }
         bullet.setLife(life);
         syncBullet(world, bullet, SPacketDanmaku.FLAG_LIFE);
     }
@@ -147,7 +158,9 @@ public class DanmakuManager {
 
     public void updateBulletVisual(World world, int id, String texture, String rendererType, String renderState, int flags) {
         Bullet bullet = getLiveBullet(world, id);
-        if (bullet == null || flags == 0) return;
+        if (bullet == null || flags == 0) {
+            return;
+        }
         if ((flags & SPacketBulletVisual.FLAG_TEXTURE) != 0) {
             bullet.setTexture(texture);
         }
@@ -180,7 +193,9 @@ public class DanmakuManager {
                           ILaserCollisionFilter collisionFilter,
                           EntityLivingBase shooter, ItemStack shooterHeldItem,
                           AttackSourceInfo attackSourceInfo, String renderPresetId) {
-        if (world.isRemote) return -1;
+        if (world.isRemote) {
+            return -1;
+        }
         Vec3d offset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
         Vec3d offsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
         if ((start == null || direction == null) && followShooter && shooter != null) {
@@ -217,7 +232,9 @@ public class DanmakuManager {
 
     public void removeLaser(World world, int id, LifecycleRemoveReason reason) {
         Laser removed = laserStore.remove(world, id);
-        if (removed == null) return;
+        if (removed == null) {
+            return;
+        }
 
         MinecraftForge.EVENT_BUS.post(new LaserRemoveEvent(world, createLaserSnapshot(removed), reason));
         syncService.sendLaserRemove(world, id);
@@ -233,7 +250,9 @@ public class DanmakuManager {
 
     public boolean updateLaserTransform(World world, int id, Vec3d start, Vec3d direction) {
         Laser laser = getLiveLaser(world, id);
-        if (laser == null || laser.isDead()) return false;
+        if (laser == null || laser.isDead()) {
+            return false;
+        }
 
         laser.setStart(start);
         laser.setDirection(direction);
@@ -244,7 +263,9 @@ public class DanmakuManager {
 
     public boolean updateLaserLength(World world, int id, double length) {
         Laser laser = getLiveLaser(world, id);
-        if (laser == null) return false;
+        if (laser == null) {
+            return false;
+        }
         laser.setCurrentLength(Math.max(0.0D, Math.min(length, laser.getMaxLength())));
         syncLaser(world, laser, SPacketLaser.FLAG_LENGTH);
         return true;
@@ -252,7 +273,9 @@ public class DanmakuManager {
 
     public void updateLaserLife(World world, int id, int life) {
         Laser laser = getLiveLaser(world, id);
-        if (laser == null) return;
+        if (laser == null) {
+            return;
+        }
         laser.setLife(life);
         if (life == 0) {
             removeLaser(world, id, LifecycleRemoveReason.API_REQUEST);
@@ -264,7 +287,9 @@ public class DanmakuManager {
     @SubscribeEvent
     public void onWorldTick(TickEvent.WorldTickEvent event) {
         World world = event.world;
-        if (world.isRemote || event.phase != TickEvent.Phase.END) return;
+        if (world.isRemote || event.phase != TickEvent.Phase.END) {
+            return;
+        }
 
         Map<Integer, Laser> laserMap = laserStore.getWorldEntries(world);
         if (laserMap != null) {
@@ -275,8 +300,12 @@ public class DanmakuManager {
 
             List<Laser> lasers = new ArrayList<>(laserMap.values());
             for (Laser laser : lasers) {
-                if (laser.isDead()) continue;
-                if (!laserStore.isCurrent(world, laser.getId(), laser)) continue;
+                if (laser.isDead()) {
+                    continue;
+                }
+                if (!laserStore.isCurrent(world, laser.getId(), laser)) {
+                    continue;
+                }
 
                 Vec3d previousStart = laser.getSyncBaselineStart();
                 Vec3d previousDirection = laser.getSyncBaselineDirection();
@@ -285,9 +314,15 @@ public class DanmakuManager {
                 laser.setCurrentLength(length);
                 handleLaserCollision(laser, world);
                 int laserFlags = 0;
-                if (!sameVec(previousStart, laser.getStart())) laserFlags |= SPacketLaser.FLAG_START;
-                if (!sameVec(previousDirection, laser.getDirection())) laserFlags |= SPacketLaser.FLAG_DIRECTION;
-                if (!sameDouble(previousLength, laser.getCurrentLength())) laserFlags |= SPacketLaser.FLAG_LENGTH;
+                if (!sameVec(previousStart, laser.getStart())) {
+                    laserFlags |= SPacketLaser.FLAG_START;
+                }
+                if (!sameVec(previousDirection, laser.getDirection())) {
+                    laserFlags |= SPacketLaser.FLAG_DIRECTION;
+                }
+                if (!sameDouble(previousLength, laser.getCurrentLength())) {
+                    laserFlags |= SPacketLaser.FLAG_LENGTH;
+                }
                 syncLaser(world, laser, laserFlags);
             }
 
@@ -305,16 +340,24 @@ public class DanmakuManager {
 
             for (Bullet bullet : bullets) {
                 ICollisionShape shape = bullet.getCollisionShape();
-                if (shape == null || bullet.isDead()) continue;
-                if (!bulletStore.isCurrent(world, bullet.getId(), bullet)) continue;
+                if (shape == null || bullet.isDead()) {
+                    continue;
+                }
+                if (!bulletStore.isCurrent(world, bullet.getId(), bullet)) {
+                    continue;
+                }
 
                 double posX = bullet.getPosX();
                 double posY = bullet.getPosY();
                 double posZ = bullet.getPosZ();
                 if (bullet.isOnlyPlayer()) {
                     for (EntityPlayer player : world.playerEntities) {
-                        if (player.isDead || player.capabilities.disableDamage) continue;
-                        if (!canBulletCollide(world, bullet, player)) continue;
+                        if (player.isDead || player.capabilities.disableDamage) {
+                            continue;
+                        }
+                        if (!canBulletCollide(world, bullet, player)) {
+                            continue;
+                        }
                         if (shape.checkCollision(posX, posY, posZ, player)) {
                             handleCollision(bullet, world, player);
                             if (bullet.isDead() || !bulletStore.isCurrent(world, bullet.getId(), bullet)) {
@@ -328,8 +371,12 @@ public class DanmakuManager {
                     }
                     List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
                     for (EntityLivingBase entity : candidates) {
-                        if (entity.isDead) continue;
-                        if (!canBulletCollide(world, bullet, entity)) continue;
+                        if (entity.isDead) {
+                            continue;
+                        }
+                        if (!canBulletCollide(world, bullet, entity)) {
+                            continue;
+                        }
                         if (shape.checkCollision(posX, posY, posZ, entity)) {
                             handleCollision(bullet, world, entity);
                             if (bullet.isDead() || !bulletStore.isCurrent(world, bullet.getId(), bullet)) {
@@ -381,8 +428,12 @@ public class DanmakuManager {
     }
 
     private boolean canBulletCollide(World world, Bullet bullet, EntityLivingBase entity) {
-        if (entity == null || entity.isDead) return false;
-        if (bullet.getShooter() == entity) return false;
+        if (entity == null || entity.isDead) {
+            return false;
+        }
+        if (bullet.getShooter() == entity) {
+            return false;
+        }
 
         AttackSourceInfo source = bullet.getAttackSourceInfo();
         if (source != null && source.getOwnerId() != null && source.getOwnerId().equals(entity.getUniqueID())) {
@@ -452,7 +503,9 @@ public class DanmakuManager {
 
     private double computeLaserLength(Laser laser, World world) {
         double maxLength = laser.getMaxLength();
-        if (!laser.isBlockStops()) return maxLength;
+        if (!laser.isBlockStops()) {
+            return maxLength;
+        }
         Vec3d start = laser.getStart();
         Vec3d end = start.add(laser.getDirection().scale(maxLength));
         RayTraceResult hit = world.rayTraceBlocks(start, end, false, true, false);
@@ -466,7 +519,9 @@ public class DanmakuManager {
         Vec3d start = laser.getStart();
         Vec3d dir = laser.getDirection();
         double length = laser.getCurrentLength();
-        if (length <= 0.0D) return;
+        if (length <= 0.0D) {
+            return;
+        }
         Vec3d end = start.add(dir.scale(length));
 
         AxisAlignedBB searchBox = buildSegmentAabb(start, end, laser.getThickness());
@@ -477,8 +532,12 @@ public class DanmakuManager {
             EntityLivingBase closest = null;
             double closestT = Double.MAX_VALUE;
             for (EntityLivingBase entity : candidates) {
-                if (entity.isDead) continue;
-                if (!canLaserCollide(world, laser, entity)) continue;
+                if (entity.isDead) {
+                    continue;
+                }
+                if (!canLaserCollide(world, laser, entity)) {
+                    continue;
+                }
                 double tEntry = segmentBoxEntry(start, end, entity.getEntityBoundingBox().grow(laser.getThickness()));
                 if (!Double.isNaN(tEntry) && tEntry < closestT) {
                     closestT = tEntry;
@@ -497,8 +556,12 @@ public class DanmakuManager {
         }
 
         for (EntityLivingBase entity : candidates) {
-            if (entity.isDead) continue;
-            if (!canLaserCollide(world, laser, entity)) continue;
+            if (entity.isDead) {
+                continue;
+            }
+            if (!canLaserCollide(world, laser, entity)) {
+                continue;
+            }
             double tEntry = segmentBoxEntry(start, end, entity.getEntityBoundingBox().grow(laser.getThickness()));
             if (!Double.isNaN(tEntry) && laser.canTrigger(entity, worldTick)) {
                 handleLaserHit(laser, world, entity, worldTick);
@@ -520,12 +583,16 @@ public class DanmakuManager {
     }
 
     private boolean canLaserCollide(World world, Laser laser, EntityLivingBase entity) {
-        if (laser.getShooter() == entity) return false;
+        if (laser.getShooter() == entity) {
+            return false;
+        }
         AttackSourceInfo source = laser.getAttackSourceInfo();
         if (source != null && source.getOwnerId() != null && source.getOwnerId().equals(entity.getUniqueID())) {
             return false;
         }
-        if (laser.isOnlyPlayer() && !(entity instanceof EntityPlayer)) return false;
+        if (laser.isOnlyPlayer() && !(entity instanceof EntityPlayer)) {
+            return false;
+        }
         if (entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.disableDamage) {
             return false;
         }
@@ -586,7 +653,9 @@ public class DanmakuManager {
     }
 
     private void syncBullet(World world, Bullet bullet, int flags) {
-        if (bullet == null) return;
+        if (bullet == null) {
+            return;
+        }
         if (bullet.isDead() || bullet.getLife() <= 0) {
             removeBullet(world, bullet.getId(), LifecycleRemoveReason.API_REQUEST);
             return;
@@ -595,7 +664,9 @@ public class DanmakuManager {
     }
 
     private void syncLaser(World world, Laser laser, int flags) {
-        if (laser == null) return;
+        if (laser == null) {
+            return;
+        }
         if (laser.isDead() || laser.getLife() == 0) {
             removeLaser(world, laser.getId(), LifecycleRemoveReason.API_REQUEST);
             return;
@@ -611,8 +682,12 @@ public class DanmakuManager {
     }
 
     private static boolean sameVec(Vec3d a, Vec3d b) {
-        if (a == b) return true;
-        if (a == null || b == null) return false;
+        if (a == b) {
+            return true;
+        }
+        if (a == null || b == null) {
+            return false;
+        }
         return a.squareDistanceTo(b) < 1.0E-8;
     }
 
@@ -631,8 +706,12 @@ public class DanmakuManager {
     }
 
     private static Vec3d toLocalOffset(Vec3d look, Vec3d local) {
-        if (local == null) return new Vec3d(0, 0, 0);
-        if (look == null || look.lengthSquared() < 1.0E-6) return new Vec3d(0, 0, 0);
+        if (local == null) {
+            return new Vec3d(0, 0, 0);
+        }
+        if (look == null || look.lengthSquared() < 1.0E-6) {
+            return new Vec3d(0, 0, 0);
+        }
         Vec3d forward = look.normalize();
         Vec3d upRef = new Vec3d(0, 1, 0);
         Vec3d right = forward.crossProduct(upRef);
@@ -654,7 +733,9 @@ public class DanmakuManager {
         double tmax = 1.0D;
 
         if (Math.abs(dx) < 1.0E-8) {
-            if (start.x < box.minX || start.x > box.maxX) return Double.NaN;
+            if (start.x < box.minX || start.x > box.maxX) {
+                return Double.NaN;
+            }
         } else {
             double inv = 1.0D / dx;
             double t1 = (box.minX - start.x) * inv;
@@ -662,11 +743,15 @@ public class DanmakuManager {
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
             tmin = Math.max(tmin, t1);
             tmax = Math.min(tmax, t2);
-            if (tmin > tmax) return Double.NaN;
+            if (tmin > tmax) {
+                return Double.NaN;
+            }
         }
 
         if (Math.abs(dy) < 1.0E-8) {
-            if (start.y < box.minY || start.y > box.maxY) return Double.NaN;
+            if (start.y < box.minY || start.y > box.maxY) {
+                return Double.NaN;
+            }
         } else {
             double inv = 1.0D / dy;
             double t1 = (box.minY - start.y) * inv;
@@ -674,11 +759,15 @@ public class DanmakuManager {
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
             tmin = Math.max(tmin, t1);
             tmax = Math.min(tmax, t2);
-            if (tmin > tmax) return Double.NaN;
+            if (tmin > tmax) {
+                return Double.NaN;
+            }
         }
 
         if (Math.abs(dz) < 1.0E-8) {
-            if (start.z < box.minZ || start.z > box.maxZ) return Double.NaN;
+            if (start.z < box.minZ || start.z > box.maxZ) {
+                return Double.NaN;
+            }
         } else {
             double inv = 1.0D / dz;
             double t1 = (box.minZ - start.z) * inv;
@@ -686,7 +775,9 @@ public class DanmakuManager {
             if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
             tmin = Math.max(tmin, t1);
             tmax = Math.min(tmax, t2);
-            if (tmin > tmax) return Double.NaN;
+            if (tmin > tmax) {
+                return Double.NaN;
+            }
         }
 
         return tmin;

@@ -97,7 +97,9 @@ public class ShootLaserPattern implements ISummonAttackPattern {
             }
         }
 
-        if (!context.summon.canAttack()) return;
+        if (!context.summon.canAttack()) {
+            return;
+        }
 
         LaserBuilder builder = LaserApi.builder(context.world)
                 .start(start)
@@ -132,7 +134,9 @@ public class ShootLaserPattern implements ISummonAttackPattern {
     }
 
     private void stopActiveLaser(SummonContext context) {
-        if (!context.summon.hasActiveLaser()) return;
+        if (!context.summon.hasActiveLaser()) {
+            return;
+        }
         LaserApi.handle(context.world, context.summon.getActiveLaserId()).remove();
         context.summon.clearActiveLaserId();
     }

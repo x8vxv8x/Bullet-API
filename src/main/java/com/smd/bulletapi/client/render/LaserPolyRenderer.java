@@ -37,7 +37,9 @@ public class LaserPolyRenderer implements ILaserRenderer {
 
     @Override
     public void renderBatch(Collection<ClientLaser> lasers, float partialTicks, double viewX, double viewY, double viewZ) {
-        if (lasers.isEmpty()) return;
+        if (lasers.isEmpty()) {
+            return;
+        }
 
         Tessellator tess = Tessellator.getInstance();
         BufferBuilder buf = tess.getBuffer();
@@ -50,7 +52,9 @@ public class LaserPolyRenderer implements ILaserRenderer {
             Vec3d end = laser.getRenderEnd(partialTicks);
             Vec3d dir = end.subtract(start);
             double len = dir.length();
-            if (len < 1.0E-6) continue;
+            if (len < 1.0E-6) {
+                continue;
+            }
             dir = dir.normalize();
 
             NBTTagCompound data = laser.getCustomData();
@@ -86,7 +90,9 @@ public class LaserPolyRenderer implements ILaserRenderer {
             int blockColorB = useBlock ? data.getInteger("block_color_b") : shellColor;
 
             Vec3d viewDir = new Vec3d(viewX - start.x, viewY - start.y, viewZ - start.z);
-            if (viewDir.lengthSquared() < 1.0E-6) viewDir = new Vec3d(0, 1, 0);
+            if (viewDir.lengthSquared() < 1.0E-6) {
+                viewDir = new Vec3d(0, 1, 0);
+            }
             viewDir = viewDir.normalize();
 
             Vec3d right = dir.crossProduct(viewDir);
@@ -190,7 +196,9 @@ public class LaserPolyRenderer implements ILaserRenderer {
     }
 
     private static int blockColorAt(double position, float blockLen, int colorA, int colorB, boolean soft) {
-        if (blockLen <= 0.0f) return colorA;
+        if (blockLen <= 0.0f) {
+            return colorA;
+        }
         double unit = position / blockLen;
         if (!soft) {
             int idx = (int) Math.floor(unit);

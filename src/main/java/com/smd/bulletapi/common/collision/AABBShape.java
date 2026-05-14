@@ -27,7 +27,9 @@ public class AABBShape implements ICollisionShape {
 
     @Override
     public boolean intersects(double x, double y, double z, Entity target) {
-        if (!(target instanceof EntityLivingBase)) return false;
+        if (!(target instanceof EntityLivingBase)) {
+            return false;
+        }
         AxisAlignedBB box = target.getEntityBoundingBox();
         double halfW = width / 2.0;
         double halfH = height / 2.0;

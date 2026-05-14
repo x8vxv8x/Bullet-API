@@ -99,9 +99,13 @@ abstract class AbstractClientBulletCache {
 
     @SubscribeEvent
     public final void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.world == null || mc.player == null || mc.isGamePaused()) return;
+        if (mc.world == null || mc.player == null || mc.isGamePaused()) {
+            return;
+        }
 
         for (ClientBullet entry : entries.values()) {
             entry.tick();

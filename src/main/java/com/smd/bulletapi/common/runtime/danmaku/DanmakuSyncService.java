@@ -20,7 +20,9 @@ public final class DanmakuSyncService {
     }
 
     public void syncBullet(World world, Bullet bullet, int flags) {
-        if (flags == 0) return;
+        if (flags == 0) {
+            return;
+        }
         PacketHandler.sendToDimension(
                 SPacketDanmaku.createUpdate(
                         bullet.getId(),
@@ -34,7 +36,9 @@ public final class DanmakuSyncService {
     }
 
     public void syncBulletVisual(World world, Bullet bullet, int flags) {
-        if (flags == 0) return;
+        if (flags == 0) {
+            return;
+        }
         PacketHandler.sendToDimension(
                 SPacketBulletVisual.createBullet(
                         bullet.getId(),
@@ -59,7 +63,9 @@ public final class DanmakuSyncService {
     }
 
     public void syncLaser(World world, Laser laser, int flags) {
-        if (flags == 0) return;
+        if (flags == 0) {
+            return;
+        }
         PacketHandler.sendToDimension(
                 SPacketLaser.createUpdate(
                         laser.getId(),

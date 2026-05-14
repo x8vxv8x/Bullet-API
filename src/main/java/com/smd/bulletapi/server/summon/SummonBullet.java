@@ -57,38 +57,52 @@ public class SummonBullet extends Bullet implements ISummonActor {
         this.lastSyncWorldTick = spawnTick;
     }
 
+    @Override
     public UUID getOwnerId() { return ownerId; }
+    @Override
     public int getSlotCost() { return slotCost; }
+    @Override
     public String getDefinitionId() { return definitionId; }
+    @Override
     public SummonDefinition getDefinition() { return definition; }
+    @Override
     public SummonState getState() { return state; }
+    @Override
     public void setState(SummonState state) { this.state = state; }
+    @Override
     public int getFormationIndex() { return formationIndex; }
+    @Override
     public long getSpawnTick() { return spawnTick; }
 
+    @Override
     public EntityLivingBase getOwnerEntity(World world) {
         EntityLivingBase shooter = getShooter();
         if (shooter != null && !shooter.isDead && shooter.world == world && ownerId.equals(shooter.getUniqueID())) {
             return shooter;
         }
-        for (Entity player : world.playerEntities) {
+        for (EntityLivingBase player : world.playerEntities) {
             if (player instanceof EntityLivingBase && !player.isDead && ownerId.equals(player.getUniqueID())) {
-                return (EntityLivingBase) player;
+                return player;
             }
         }
         return null;
     }
 
+    @Override
     public EntityLivingBase getTarget(World world) {
-        if (targetEntityId < 0) return null;
+        if (targetEntityId < 0) {
+            return null;
+        }
         Entity entity = world.getEntityByID(targetEntityId);
         return entity instanceof EntityLivingBase && !entity.isDead ? (EntityLivingBase) entity : null;
     }
 
+    @Override
     public int getTargetEntityId() {
         return targetEntityId;
     }
 
+    @Override
     public void setTarget(EntityLivingBase target) {
         setTarget(target, SummonTargetSource.SCRIPT);
     }
@@ -107,34 +121,47 @@ public class SummonBullet extends Bullet implements ISummonActor {
         setTarget(null, SummonTargetSource.NONE);
     }
 
+    @Override
     public boolean shouldRetarget() {
         return retargetCooldown <= 0;
     }
 
+    @Override
     public void resetRetargetCooldown() {
         retargetCooldown = Math.max(1, definition.getRetargetIntervalTicks());
     }
 
+    @Override
     public boolean canAttack() {
         return attackCooldown <= 0;
     }
 
+    @Override
     public void setAttackCooldown(int attackCooldown) {
         this.attackCooldown = Math.max(0, attackCooldown);
     }
 
+    @Override
     public boolean shouldSync() {
         return syncCooldown <= 0;
     }
 
+    @Override
     public void resetSyncCooldown() {
         syncCooldown = Math.max(1, definition.getSyncIntervalTicks());
     }
 
+    @Override
     public void tickCooldowns() {
-        if (retargetCooldown > 0) retargetCooldown--;
-        if (attackCooldown > 0) attackCooldown--;
-        if (syncCooldown > 0) syncCooldown--;
+        if (retargetCooldown > 0) {
+            retargetCooldown--;
+        }
+        if (attackCooldown > 0) {
+            attackCooldown--;
+        }
+        if (syncCooldown > 0) {
+            syncCooldown--;
+        }
     }
 
     public Vec3d getLastSyncedPosition() {
@@ -155,39 +182,53 @@ public class SummonBullet extends Bullet implements ISummonActor {
         this.lastSyncWorldTick = worldTick;
     }
 
+    @Override
     public boolean canTriggerContact(EntityLivingBase entity, long worldTick) {
         int interval = definition.getBodyCollisionIntervalTicks();
-        if (entity == null) return false;
-        if (interval <= 0) return true;
+        if (entity == null) {
+            return false;
+        }
+        if (interval <= 0) {
+            return true;
+        }
         Long last = lastContactHitTick.get(entity.getEntityId());
         return last == null || worldTick - last >= interval;
     }
 
+    @Override
     public void markContactTriggered(EntityLivingBase entity, long worldTick) {
-        if (entity == null) return;
+        if (entity == null) {
+            return;
+        }
         lastContactHitTick.put(entity.getEntityId(), worldTick);
     }
 
+    @Override
     public boolean hasReleasedSlots() {
         return releasedSlots;
     }
 
+    @Override
     public void markSlotsReleased() {
         releasedSlots = true;
     }
 
+    @Override
     public int getActiveLaserId() {
         return activeLaserId;
     }
 
+    @Override
     public boolean hasActiveLaser() {
         return activeLaserId >= 0;
     }
 
+    @Override
     public void setActiveLaserId(int activeLaserId) {
         this.activeLaserId = activeLaserId;
     }
 
+    @Override
     public void clearActiveLaserId() {
         this.activeLaserId = -1;
     }

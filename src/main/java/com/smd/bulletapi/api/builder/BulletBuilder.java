@@ -174,9 +174,15 @@ public class BulletBuilder {
     }
 
     public BulletHandle spawnHandle() {
-        if (position == null) throw new IllegalStateException("Position must be set");
-        if (velocity == null) throw new IllegalStateException("Velocity must be set");
-        if (world.isRemote) throw new IllegalStateException("Cannot spawn bullet on client side");
+        if (position == null) {
+            throw new IllegalStateException("Position must be set");
+        }
+        if (velocity == null) {
+            throw new IllegalStateException("Velocity must be set");
+        }
+        if (world.isRemote) {
+            throw new IllegalStateException("Cannot spawn bullet on client side");
+        }
 
         int id = DanmakuManager.getInstance().spawnBullet(
                 world, position, velocity, life, damage,

@@ -97,7 +97,9 @@ public class AttackSourceInfo {
     }
 
     public void writeToTag(NBTTagCompound tag) {
-        if (tag == null) return;
+        if (tag == null) {
+            return;
+        }
         tag.setString(TAG_SOURCE_TYPE, type.name());
         if (ownerId != null) {
             tag.setString(TAG_OWNER_UUID, ownerId.toString());

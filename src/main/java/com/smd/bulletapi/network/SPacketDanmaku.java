@@ -64,10 +64,18 @@ public class SPacketDanmaku implements IMessage {
             p.usePresetRef = true;
             p.presetId = renderPresetId;
             p.flags = RenderDataRefs.bulletDiffFlags(actual, base, customDataDiff);
-            if ((p.flags & RenderDataRefs.FLAG_TEXTURE) != 0) p.texture = actual.texture;
-            if ((p.flags & RenderDataRefs.FLAG_COLOR) != 0) p.color = actual.color;
-            if ((p.flags & RenderDataRefs.FLAG_SIZE) != 0) p.size = actual.size;
-            if ((p.flags & RenderDataRefs.FLAG_RENDERER) != 0) p.rendererType = actual.rendererType;
+            if ((p.flags & RenderDataRefs.FLAG_TEXTURE) != 0) {
+                p.texture = actual.texture;
+            }
+            if ((p.flags & RenderDataRefs.FLAG_COLOR) != 0) {
+                p.color = actual.color;
+            }
+            if ((p.flags & RenderDataRefs.FLAG_SIZE) != 0) {
+                p.size = actual.size;
+            }
+            if ((p.flags & RenderDataRefs.FLAG_RENDERER) != 0) {
+                p.rendererType = actual.rendererType;
+            }
             if ((p.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
                 p.customData = customDataDiff;
             }
@@ -114,11 +122,21 @@ public class SPacketDanmaku implements IMessage {
                 if (usePresetRef) {
                     presetId = ByteBufUtils.readUTF8String(buf);
                     flags = buf.readInt();
-                    if ((flags & RenderDataRefs.FLAG_TEXTURE) != 0) texture = ByteBufUtils.readUTF8String(buf);
-                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) color = buf.readInt();
-                    if ((flags & RenderDataRefs.FLAG_SIZE) != 0) size = buf.readFloat();
-                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) rendererType = ByteBufUtils.readUTF8String(buf);
-                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) customData = ByteBufUtils.readTag(buf);
+                    if ((flags & RenderDataRefs.FLAG_TEXTURE) != 0) {
+                        texture = ByteBufUtils.readUTF8String(buf);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_COLOR) != 0) {
+                        color = buf.readInt();
+                    }
+                    if ((flags & RenderDataRefs.FLAG_SIZE) != 0) {
+                        size = buf.readFloat();
+                    }
+                    if ((flags & RenderDataRefs.FLAG_RENDERER) != 0) {
+                        rendererType = ByteBufUtils.readUTF8String(buf);
+                    }
+                    if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
+                        customData = ByteBufUtils.readTag(buf);
+                    }
                 } else {
                     texture = ByteBufUtils.readUTF8String(buf);
                     color = buf.readInt();
@@ -204,7 +222,9 @@ public class SPacketDanmaku implements IMessage {
         public IMessage onMessage(SPacketDanmaku message, MessageContext ctx) {
             PacketHandler.runOnClientThread(ctx, () -> {
                 ClientDanmakuCache cache = ClientDanmakuCache.INSTANCE;
-                if (cache == null) return;
+                if (cache == null) {
+                    return;
+                }
                 switch (message.op) {
                     case SPAWN:
                         String textureValue = message.texture;
@@ -215,10 +235,18 @@ public class SPacketDanmaku implements IMessage {
                         if (message.usePresetRef) {
                             RenderDataRefs.BulletRenderData base = RenderDataRefs.bulletFromPreset(message.presetId);
                             if (base != null) {
-                                if ((message.flags & RenderDataRefs.FLAG_TEXTURE) == 0) textureValue = base.texture;
-                                if ((message.flags & RenderDataRefs.FLAG_COLOR) == 0) colorValue = base.color;
-                                if ((message.flags & RenderDataRefs.FLAG_SIZE) == 0) sizeValue = base.size;
-                                if ((message.flags & RenderDataRefs.FLAG_RENDERER) == 0) rendererTypeValue = base.rendererType;
+                                if ((message.flags & RenderDataRefs.FLAG_TEXTURE) == 0) {
+                                    textureValue = base.texture;
+                                }
+                                if ((message.flags & RenderDataRefs.FLAG_COLOR) == 0) {
+                                    colorValue = base.color;
+                                }
+                                if ((message.flags & RenderDataRefs.FLAG_SIZE) == 0) {
+                                    sizeValue = base.size;
+                                }
+                                if ((message.flags & RenderDataRefs.FLAG_RENDERER) == 0) {
+                                    rendererTypeValue = base.rendererType;
+                                }
                                 customDataValue = (message.flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0
                                         ? RenderDataRefs.merge(base.customData, message.customData)
                                         : base.customData;
@@ -246,7 +274,7 @@ public class SPacketDanmaku implements IMessage {
                                 message.id,
                                 (message.flags & FLAG_POSITION) != 0 ? new Vec3d(message.x, message.y, message.z) : null,
                                 (message.flags & FLAG_VELOCITY) != 0 ? new Vec3d(message.vx, message.vy, message.vz) : null,
-                                (message.flags & FLAG_LIFE) != 0 ? Integer.valueOf(message.life) : null
+                                (message.flags & FLAG_LIFE) != 0 ? message.life : null
                         );
                         break;
                     case REMOVE:

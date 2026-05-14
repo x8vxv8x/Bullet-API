@@ -21,7 +21,9 @@ public class NearestHostileSelector implements ISummonTargetSelector {
         EntityLivingBase best = null;
         double bestDistSq = Double.MAX_VALUE;
         for (EntityLivingBase candidate : candidates) {
-            if (!isValidTarget(context, candidate)) continue;
+            if (!isValidTarget(context, candidate)) {
+                continue;
+            }
             double distSq = candidate.getDistanceSq(center.x, center.y, center.z);
             if (distSq < bestDistSq) {
                 best = candidate;
@@ -32,9 +34,15 @@ public class NearestHostileSelector implements ISummonTargetSelector {
     }
 
     private boolean isValidTarget(SummonContext context, EntityLivingBase entity) {
-        if (entity == null || entity.isDead || entity == context.owner) return false;
-        if (entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.disableDamage) return false;
-        if (entity.getDistanceSq(context.owner) > context.definition.getFollowRange() * context.definition.getFollowRange()) return false;
+        if (entity == null || entity.isDead || entity == context.owner) {
+            return false;
+        }
+        if (entity instanceof EntityPlayer && ((EntityPlayer) entity).capabilities.disableDamage) {
+            return false;
+        }
+        if (entity.getDistanceSq(context.owner) > context.definition.getFollowRange() * context.definition.getFollowRange()) {
+            return false;
+        }
         return entity instanceof IMob;
     }
 }

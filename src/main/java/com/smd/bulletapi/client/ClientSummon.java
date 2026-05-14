@@ -25,7 +25,9 @@ public class ClientSummon extends ClientBullet {
 
     @Override
     public void tick() {
-        if (dead) return;
+        if (dead) {
+            return;
+        }
         prevPositionX = positionX;
         prevPositionY = positionY;
         prevPositionZ = positionZ;
@@ -39,12 +41,14 @@ public class ClientSummon extends ClientBullet {
         positionZ += (targetPositionZ - positionZ) * POSITION_BLEND;
 
         life--;
-        if (life <= 0) dead = true;
+        if (life <= 0) {
+            dead = true;
+        }
     }
 
     @Override
     public void applySnapshot(Vec3d position, Vec3d velocity, int life) {
-        applyUpdate(position, velocity, Integer.valueOf(life));
+        applyUpdate(position, velocity, life);
     }
 
     @Override

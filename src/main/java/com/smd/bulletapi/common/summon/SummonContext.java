@@ -98,7 +98,9 @@ public class SummonContext {
     }
 
     public boolean hasParam(String key) {
-        if (key == null || key.isEmpty()) return false;
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
         NBTTagCompound runtime = getRuntimeData(false);
         if (runtime != null && runtime.hasKey(key)) {
             return true;
@@ -108,7 +110,9 @@ public class SummonContext {
     }
 
     public boolean hasRuntimeParam(String key) {
-        if (key == null || key.isEmpty()) return false;
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
         NBTTagCompound runtime = getRuntimeData(false);
         return runtime != null && runtime.hasKey(key);
     }
@@ -134,22 +138,30 @@ public class SummonContext {
     }
 
     public void setInt(String key, int value) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isEmpty()) {
+            return;
+        }
         writeRuntime(runtime -> runtime.setInteger(key, value));
     }
 
     public void setFloat(String key, float value) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isEmpty()) {
+            return;
+        }
         writeRuntime(runtime -> runtime.setFloat(key, value));
     }
 
     public void setBool(String key, boolean value) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isEmpty()) {
+            return;
+        }
         writeRuntime(runtime -> runtime.setBoolean(key, value));
     }
 
     public void setString(String key, String value) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isEmpty()) {
+            return;
+        }
         writeRuntime(runtime -> {
             if (value == null) {
                 runtime.removeTag(key);
@@ -160,13 +172,17 @@ public class SummonContext {
     }
 
     public void clearParam(String key) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isEmpty()) {
+            return;
+        }
         writeRuntime(runtime -> runtime.removeTag(key));
     }
 
     public int consumeInt(String key, int defaultValue) {
         NBTTagCompound runtime = getRuntimeData(false);
-        if (runtime == null || !runtime.hasKey(key)) return defaultValue;
+        if (runtime == null || !runtime.hasKey(key)) {
+            return defaultValue;
+        }
         int value = runtime.getInteger(key);
         clearParam(key);
         return value;
@@ -174,7 +190,9 @@ public class SummonContext {
 
     public float consumeFloat(String key, float defaultValue) {
         NBTTagCompound runtime = getRuntimeData(false);
-        if (runtime == null || !runtime.hasKey(key)) return defaultValue;
+        if (runtime == null || !runtime.hasKey(key)) {
+            return defaultValue;
+        }
         float value = runtime.getFloat(key);
         clearParam(key);
         return value;
@@ -182,7 +200,9 @@ public class SummonContext {
 
     public boolean consumeBool(String key, boolean defaultValue) {
         NBTTagCompound runtime = getRuntimeData(false);
-        if (runtime == null || !runtime.hasKey(key)) return defaultValue;
+        if (runtime == null || !runtime.hasKey(key)) {
+            return defaultValue;
+        }
         boolean value = runtime.getBoolean(key);
         clearParam(key);
         return value;
@@ -190,7 +210,9 @@ public class SummonContext {
 
     public String consumeString(String key, String defaultValue) {
         NBTTagCompound runtime = getRuntimeData(false);
-        if (runtime == null || !runtime.hasKey(key)) return defaultValue;
+        if (runtime == null || !runtime.hasKey(key)) {
+            return defaultValue;
+        }
         String value = runtime.getString(key);
         clearParam(key);
         return value;
@@ -213,7 +235,9 @@ public class SummonContext {
     }
 
     private NBTTagCompound getParamContainer(String key) {
-        if (key == null || key.isEmpty()) return null;
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
         NBTTagCompound runtime = getRuntimeData(false);
         if (runtime != null && runtime.hasKey(key)) {
             return runtime;
@@ -236,11 +260,15 @@ public class SummonContext {
 
     private NBTTagCompound getRuntimeData(boolean create) {
         NBTTagCompound root = getRootData(create);
-        if (root == null) return null;
+        if (root == null) {
+            return null;
+        }
         if (root.hasKey(RUNTIME_ROOT_KEY)) {
             return root.getCompoundTag(RUNTIME_ROOT_KEY);
         }
-        if (!create) return null;
+        if (!create) {
+            return null;
+        }
         NBTTagCompound runtime = new NBTTagCompound();
         root.setTag(RUNTIME_ROOT_KEY, runtime);
         summon.setCustomData(root);

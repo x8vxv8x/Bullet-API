@@ -23,11 +23,15 @@ public class BillboardRenderer implements IBulletRenderer {
 
     @Override
     public void renderBatch(Collection<ClientBullet> bullets, float partialTicks, double viewX, double viewY, double viewZ) {
-        if (bullets.isEmpty()) return;
+        if (bullets.isEmpty()) {
+            return;
+        }
 
         // 假设所有子弹使用相同纹理（由第一个子弹决定）
         ResourceLocation texture = bullets.iterator().next().getTexture();
-        if (texture == null) return;
+        if (texture == null) {
+            return;
+        }
 
         Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
 

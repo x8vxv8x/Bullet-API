@@ -18,7 +18,9 @@ public final class SummonSyncService {
     }
 
     public void sendSnapshot(World world, SummonBullet summon, int flags) {
-        if (flags == 0) return;
+        if (flags == 0) {
+            return;
+        }
         PacketHandler.sendToDimension(
                 SPacketSummon.createSnapshot(
                         summon.getId(),
@@ -32,7 +34,9 @@ public final class SummonSyncService {
     }
 
     public void sendVisual(World world, SummonBullet summon, int flags) {
-        if (flags == 0) return;
+        if (flags == 0) {
+            return;
+        }
         PacketHandler.sendToDimension(
                 SPacketBulletVisual.createSummon(
                         summon.getId(),

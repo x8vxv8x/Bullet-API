@@ -99,8 +99,12 @@ public class SummonSlotManager {
 
     private void emitSlotChanged(EntityPlayer player, UUID playerId, int previousUsed, int newUsed,
                                  int previousMax, int newMax) {
-        if (playerId == null) return;
-        if (previousUsed == newUsed && previousMax == newMax) return;
+        if (playerId == null) {
+            return;
+        }
+        if (previousUsed == newUsed && previousMax == newMax) {
+            return;
+        }
         MinecraftForge.EVENT_BUS.post(new SummonSlotChangedEvent(player, playerId, previousUsed, newUsed, previousMax, newMax));
     }
 }

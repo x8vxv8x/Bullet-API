@@ -37,9 +37,13 @@ public final class RenderDataRefs {
     }
 
     public static BulletRenderData bulletFromPreset(String presetId) {
-        if (presetId == null || !BulletPresetRegistry.has(presetId)) return null;
+        if (presetId == null || !BulletPresetRegistry.has(presetId)) {
+            return null;
+        }
         BulletPreset preset = BulletPresetRegistry.get(presetId);
-        if (preset == null) return null;
+        if (preset == null) {
+            return null;
+        }
         BulletBuilder builder = new BulletBuilder(null);
         preset.apply(builder);
         return new BulletRenderData(
@@ -61,9 +65,13 @@ public final class RenderDataRefs {
     }
 
     public static LaserRenderData laserFromPreset(String presetId) {
-        if (presetId == null || !LaserPresetRegistry.has(presetId)) return null;
+        if (presetId == null || !LaserPresetRegistry.has(presetId)) {
+            return null;
+        }
         LaserPreset preset = LaserPresetRegistry.get(presetId);
-        if (preset == null) return null;
+        if (preset == null) {
+            return null;
+        }
         LaserBuilder builder = new LaserBuilder(null);
         preset.apply(builder);
         return new LaserRenderData(
@@ -85,9 +93,13 @@ public final class RenderDataRefs {
     }
 
     public static BulletRenderData summonFromDefinition(String definitionId) {
-        if (definitionId == null || !SummonRegistry.has(definitionId)) return null;
+        if (definitionId == null || !SummonRegistry.has(definitionId)) {
+            return null;
+        }
         SummonDefinition definition = SummonRegistry.get(definitionId);
-        if (definition == null) return null;
+        if (definition == null) {
+            return null;
+        }
         return new BulletRenderData(
                 definition.getTexture(),
                 definition.getColor(),
@@ -106,11 +118,21 @@ public final class RenderDataRefs {
             return FLAG_TEXTURE | FLAG_COLOR | FLAG_SIZE | FLAG_RENDERER | FLAG_CUSTOM_DATA;
         }
         int flags = 0;
-        if (!equalsNullable(actual.texture, base.texture)) flags |= FLAG_TEXTURE;
-        if (actual.color != base.color) flags |= FLAG_COLOR;
-        if (Float.compare(actual.size, base.size) != 0) flags |= FLAG_SIZE;
-        if (!equalsNullable(actual.rendererType, base.rendererType)) flags |= FLAG_RENDERER;
-        if (!isEmpty(customDataDiff)) flags |= FLAG_CUSTOM_DATA;
+        if (!equalsNullable(actual.texture, base.texture)) {
+            flags |= FLAG_TEXTURE;
+        }
+        if (actual.color != base.color) {
+            flags |= FLAG_COLOR;
+        }
+        if (Float.compare(actual.size, base.size) != 0) {
+            flags |= FLAG_SIZE;
+        }
+        if (!equalsNullable(actual.rendererType, base.rendererType)) {
+            flags |= FLAG_RENDERER;
+        }
+        if (!isEmpty(customDataDiff)) {
+            flags |= FLAG_CUSTOM_DATA;
+        }
         return flags;
     }
 
@@ -123,10 +145,18 @@ public final class RenderDataRefs {
             return FLAG_THICKNESS | FLAG_COLOR | FLAG_RENDERER | FLAG_CUSTOM_DATA;
         }
         int flags = 0;
-        if (Float.compare(actual.thickness, base.thickness) != 0) flags |= FLAG_THICKNESS;
-        if (actual.color != base.color) flags |= FLAG_COLOR;
-        if (!equalsNullable(actual.rendererType, base.rendererType)) flags |= FLAG_RENDERER;
-        if (!isEmpty(customDataDiff)) flags |= FLAG_CUSTOM_DATA;
+        if (Float.compare(actual.thickness, base.thickness) != 0) {
+            flags |= FLAG_THICKNESS;
+        }
+        if (actual.color != base.color) {
+            flags |= FLAG_COLOR;
+        }
+        if (!equalsNullable(actual.rendererType, base.rendererType)) {
+            flags |= FLAG_RENDERER;
+        }
+        if (!isEmpty(customDataDiff)) {
+            flags |= FLAG_CUSTOM_DATA;
+        }
         return flags;
     }
 
@@ -141,7 +171,7 @@ public final class RenderDataRefs {
         for (String key : actual.getKeySet()) {
             NBTBase actualTag = actual.getTag(key);
             NBTBase baseTag = base.getTag(key);
-            if (baseTag == null || !actualTag.equals(baseTag)) {
+            if (!actualTag.equals(baseTag)) {
                 diff.setTag(key, actualTag.copy());
             }
         }

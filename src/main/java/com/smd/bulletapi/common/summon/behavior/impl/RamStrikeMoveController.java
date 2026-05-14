@@ -107,7 +107,6 @@ public class RamStrikeMoveController implements ISummonMoveController {
             case APPROACH:
             default:
                 tickApproach(context, state, target);
-                return;
         }
     }
 
@@ -287,9 +286,10 @@ public class RamStrikeMoveController implements ISummonMoveController {
     }
 
     private static double clamp01(double value) {
-        if (value < 0.0D) return 0.0D;
-        if (value > 1.0D) return 1.0D;
-        return value;
+        if (value < 0.0D) {
+            return 0.0D;
+        }
+        return Math.min(value, 1.0D);
     }
 
     private enum Phase {

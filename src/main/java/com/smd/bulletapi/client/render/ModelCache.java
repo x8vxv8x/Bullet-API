@@ -22,7 +22,9 @@ public final class ModelCache {
     private ModelCache() {}
 
     public static IBakedModel getJsonModel(String model, String variant) {
-        if (model == null || model.isEmpty()) return getMissingModel();
+        if (model == null || model.isEmpty()) {
+            return getMissingModel();
+        }
 
         String resolvedVariant = (variant == null || variant.isEmpty()) ? "inventory" : variant;
         String key = "json|" + model + "#" + resolvedVariant;

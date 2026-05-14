@@ -93,7 +93,9 @@ public class ClientLaser {
     }
 
     public void tick() {
-        if (!initialized) return;
+        if (!initialized) {
+            return;
+        }
         prevStart = start;
         prevDirection = direction;
         prevLength = length;
@@ -111,7 +113,9 @@ public class ClientLaser {
 
     public Vec3d getRenderDirection(float partialTicks) {
         Vec3d d = lerp(prevDirection, direction, partialTicks);
-        if (d.lengthSquared() < 1.0E-6) return direction;
+        if (d.lengthSquared() < 1.0E-6) {
+            return direction;
+        }
         return d.normalize();
     }
 
@@ -139,8 +143,12 @@ public class ClientLaser {
     }
 
     private static Vec3d lerp(Vec3d a, Vec3d b, double t) {
-        if (a == null) return b;
-        if (b == null) return a;
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
         double x = a.x + (b.x - a.x) * t;
         double y = a.y + (b.y - a.y) * t;
         double z = a.z + (b.z - a.z) * t;

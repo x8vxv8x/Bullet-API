@@ -316,7 +316,9 @@ public class SummonDefinition {
         }
 
         public Builder copyFrom(SummonDefinition source) {
-            if (source == null) return this;
+            if (source == null) {
+                return this;
+            }
             SummonDefinition copy = source.copy();
             definition.life(copy.getLife());
             definition.damage(copy.getDamage());

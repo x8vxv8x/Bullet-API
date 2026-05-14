@@ -5,29 +5,29 @@ import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
 import com.smd.bulletapi.server.summon.SummonBullet;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @InternalApi
 public class SummonOwnershipIndex {
     private final Map<UUID, LinkedHashSet<OwnedSummonRef>> ownerSummons = new HashMap<>();
 
     public void index(World world, SummonBullet summon) {
-        if (world == null || summon == null) return;
+        if (world == null || summon == null) {
+            return;
+        }
         ownerSummons
                 .computeIfAbsent(summon.getOwnerId(), ignored -> new LinkedHashSet<>())
                 .add(new OwnedSummonRef(world, summon));
     }
 
     public void deindex(World world, SummonBullet summon) {
-        if (world == null || summon == null) return;
+        if (world == null || summon == null) {
+            return;
+        }
         LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(summon.getOwnerId());
-        if (refs == null) return;
+        if (refs == null) {
+            return;
+        }
         refs.remove(new OwnedSummonRef(world, summon));
         if (refs.isEmpty()) {
             ownerSummons.remove(summon.getOwnerId());
@@ -61,29 +61,26 @@ public class SummonOwnershipIndex {
     }
 
     private LinkedHashSet<OwnedSummonRef> getLiveOwnerRefs(UUID ownerId, WorldRuntimeStore<SummonBullet> store) {
-        if (ownerId == null) return null;
+        if (ownerId == null) {
+            return null;
+        }
 
         LinkedHashSet<OwnedSummonRef> refs = ownerSummons.get(ownerId);
         if (refs == null || refs.isEmpty()) {
             return refs;
         }
 
-        List<OwnedSummonRef> staleRefs = null;
-        for (OwnedSummonRef ref : refs) {
+        Iterator<OwnedSummonRef> it = refs.iterator();
+        while (it.hasNext()) {
+            OwnedSummonRef ref = it.next();
             SummonBullet summon = store.get(ref.world, ref.summonId);
             if (summon == null || summon.isDead()) {
-                if (staleRefs == null) {
-                    staleRefs = new ArrayList<>();
-                }
-                staleRefs.add(ref);
+                it.remove();
             }
         }
 
-        if (staleRefs != null) {
-            refs.removeAll(staleRefs);
-            if (refs.isEmpty()) {
-                ownerSummons.remove(ownerId);
-            }
+        if (refs.isEmpty()) {
+            ownerSummons.remove(ownerId);
         }
         return refs;
     }
@@ -101,8 +98,12 @@ public class SummonOwnershipIndex {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof OwnedSummonRef)) return false;
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof OwnedSummonRef)) {
+                return false;
+            }
             OwnedSummonRef other = (OwnedSummonRef) obj;
             return this.world == other.world && this.summonId == other.summonId;
         }

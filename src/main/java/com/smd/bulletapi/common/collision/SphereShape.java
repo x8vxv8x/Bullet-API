@@ -24,7 +24,9 @@ public class SphereShape implements ICollisionShape {
     @Override
     public boolean intersects(double x, double y, double z, Entity target) {
         // 如果只想对 LivingBase 生效，保留 instanceof 判断
-        if (!(target instanceof EntityLivingBase)) return false;
+        if (!(target instanceof EntityLivingBase)) {
+            return false;
+        }
         AxisAlignedBB box = target.getEntityBoundingBox();
         double closestX = Math.max(box.minX, Math.min(x, box.maxX));
         double closestY = Math.max(box.minY, Math.min(y, box.maxY));

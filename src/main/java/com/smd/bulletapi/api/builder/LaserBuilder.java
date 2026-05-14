@@ -187,9 +187,15 @@ public class LaserBuilder {
     }
 
     public LaserHandle spawnHandle() {
-        if (world.isRemote) throw new IllegalStateException("Cannot spawn laser on client side");
-        if (start == null && !followShooter) throw new IllegalStateException("Start must be set or followShooter enabled");
-        if (direction == null && !followShooter) throw new IllegalStateException("Direction must be set or followShooter enabled");
+        if (world.isRemote) {
+            throw new IllegalStateException("Cannot spawn laser on client side");
+        }
+        if (start == null && !followShooter) {
+            throw new IllegalStateException("Start must be set or followShooter enabled");
+        }
+        if (direction == null && !followShooter) {
+            throw new IllegalStateException("Direction must be set or followShooter enabled");
+        }
 
         int id = DanmakuManager.getInstance().spawnLaser(
                 world,

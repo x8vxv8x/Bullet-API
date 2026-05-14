@@ -85,7 +85,9 @@ public class Bullet implements IBulletActor, RuntimeObject {
     }
 
     public void update(World world) {
-        if (dead) return;
+        if (dead) {
+            return;
+        }
 
         if (motionController != null) {
             motionController.tick(world, this);
@@ -99,46 +101,66 @@ public class Bullet implements IBulletActor, RuntimeObject {
         positionY += velocityY;
         positionZ += velocityZ;
         life--;
-        if (life <= 0) dead = true;
+        if (life <= 0) {
+            dead = true;
+        }
     }
 
     // Getter / Setter 方法
+    @Override
     public int getId() { return id; }
+    @Override
     public Vec3d getPosition() { return new Vec3d(positionX, positionY, positionZ); }
     public double getPosX() { return positionX; }
     public double getPosY() { return positionY; }
     public double getPosZ() { return positionZ; }
+    @Override
     public Vec3d getVelocity() { return new Vec3d(velocityX, velocityY, velocityZ); }
+    @Override
     public void setVelocity(Vec3d velocity) {
         this.velocityX = velocity.x;
         this.velocityY = velocity.y;
         this.velocityZ = velocity.z;
     }
+    @Override
     public void setVelocity(double x, double y, double z) {
         this.velocityX = x;
         this.velocityY = y;
         this.velocityZ = z;
     }
+    @Override
     public void setPosition(Vec3d position) {
         setPosition(position.x, position.y, position.z);
     }
+    @Override
     public void setPosition(double x, double y, double z) {
         this.positionX = x;
         this.positionY = y;
         this.positionZ = z;
     }
+    @Override
     public void setLife(int life) { this.life = life; }
+    @Override
     public void markDead() { this.dead = true; }
+    @Override
     public int getLife() { return life; }
+    @Override
     public float getDamage() { return damage; }
+    @Override
     public boolean isDead() { return dead; }
+    @Override
     public String getTexture() { return texture; }
     public void setTexture(String texture) { this.texture = texture == null || texture.isEmpty() ? null : texture; }
+    @Override
     public int getColor() { return color; }
+    @Override
     public float getSize() { return size; }
+    @Override
     public String getRendererType() { return rendererType; }
     public void setRendererType(String rendererType) { this.rendererType = rendererType == null || rendererType.isEmpty() ? null : rendererType; }
+    @Override
     public NBTTagCompound getCustomData() { return customData; }
+    @Override
     public void setCustomData(NBTTagCompound customData) { this.customData = customData; }
     public String getRenderState() { return RenderStateData.getRenderState(customData); }
     public void setRenderState(String renderState) {
@@ -154,9 +176,13 @@ public class Bullet implements IBulletActor, RuntimeObject {
     public Consumer<IBulletActor> getTickCallback() { return tickCallback; }
     public void setTickCallback(Consumer<IBulletActor> tickCallback) { this.tickCallback = tickCallback; }
     public IBulletCollisionFilter getCollisionFilter() { return collisionFilter; }
+    @Override
     public boolean isOnlyPlayer() { return onlyPlayer; }
+    @Override
     public EntityLivingBase getShooter() { return shooter; }
+    @Override
     public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+    @Override
     public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
     public String getRenderPresetId() { return renderPresetId; }
 

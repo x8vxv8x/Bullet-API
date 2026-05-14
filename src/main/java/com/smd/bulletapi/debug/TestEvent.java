@@ -43,9 +43,15 @@ public class TestEvent {
 
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
-        if (event.getEntity().world.isRemote) return;
-        if (!"arrow".equals(event.getSource().getDamageType())) return;
-        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
+        if (event.getEntity().world.isRemote) {
+            return;
+        }
+        if (!"arrow".equals(event.getSource().getDamageType())) {
+            return;
+        }
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
 
        if (player.isSneaking() && player.isInWater()) {
@@ -55,13 +61,23 @@ public class TestEvent {
 
     @SubscribeEvent
     public static void onSummonBodyCollision(BulletCollisionEvent event) {
-        if (event.getWorld().isRemote) return;
-        if (!(event.getHitEntity() instanceof EntityLivingBase)) return;
+        if (event.getWorld().isRemote) {
+            return;
+        }
+        if (!(event.getHitEntity() instanceof EntityLivingBase)) {
+            return;
+        }
 
         CollisionContext ctx = event.getContext();
-        if (!ctx.isSummonBody()) return;
-        if (ctx.attackSource == null) return;
-        if (!SummonPresetKeys.RAM_WISP.equals(ctx.attackSource.getSummonDefinitionId())) return;
+        if (!ctx.isSummonBody()) {
+            return;
+        }
+        if (ctx.attackSource == null) {
+            return;
+        }
+        if (!SummonPresetKeys.RAM_WISP.equals(ctx.attackSource.getSummonDefinitionId())) {
+            return;
+        }
 
         EntityLivingBase hit = (EntityLivingBase) event.getHitEntity();
         int summonId = ctx.attackSource.getSummonId();
@@ -298,9 +314,7 @@ public class TestEvent {
     }
 
     private static void spawnLaserPolyTest(EntityPlayer player) {
-        ILaserHitBehavior hitBehavior = ctx -> {
-            ctx.damage = ctx.laser.getDamage();
-        };
+        ILaserHitBehavior hitBehavior = ctx -> ctx.damage = ctx.laser.getDamage();
 
         int id = LaserApi.builder(player.world)
                 .shooter(player)
@@ -350,7 +364,9 @@ public class TestEvent {
     }
 
     private static void spawnFairyOrbTest(EntityPlayer player) {
-        if (player.world.isRemote) return;
+        if (player.world.isRemote) {
+            return;
+        }
         if (SummonApi.getPlayerMaxSlots(player) < 3) {
             SummonApi.setPlayerMaxSlots(player, 3);
         }
@@ -379,7 +395,9 @@ public class TestEvent {
     }
 
     private static void spawnLaserEyeTest(EntityPlayer player) {
-        if (player.world.isRemote) return;
+        if (player.world.isRemote) {
+            return;
+        }
         if (SummonApi.getPlayerMaxSlots(player) < 8) {
             SummonApi.setPlayerMaxSlots(player, 8);
         }
@@ -408,7 +426,9 @@ public class TestEvent {
     }
 
     private static void spawnRamWispTest(EntityPlayer player) {
-        if (player.world.isRemote) return;
+        if (player.world.isRemote) {
+            return;
+        }
         if (SummonApi.getPlayerMaxSlots(player) < 8) {
             SummonApi.setPlayerMaxSlots(player, 8);
         }
@@ -437,7 +457,9 @@ public class TestEvent {
     }
 
     private static void spawnVisualSyncTest(EntityPlayer player) {
-        if (player.world.isRemote) return;
+        if (player.world.isRemote) {
+            return;
+        }
 
         Vec3d basePos = player.getPositionVector().add(0, player.getEyeHeight() + 1.2D, 0);
         BulletHandle bullet = BulletApi.builder(player.world)

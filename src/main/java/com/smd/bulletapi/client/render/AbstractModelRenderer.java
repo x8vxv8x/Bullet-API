@@ -40,14 +40,11 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
     }
 
     @Override
-    public boolean canBatch() {
-        return false;
-    }
-
-    @Override
     public void render(ClientBullet bullet, float partialTicks, double viewX, double viewY, double viewZ) {
         IBakedModel model = resolveModel(bullet);
-        if (model == null) return;
+        if (model == null) {
+            return;
+        }
 
         double x = bullet.getRenderX(partialTicks) - viewX;
         double y = bullet.getRenderY(partialTicks) - viewY;
@@ -86,7 +83,9 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
     }
 
     private static void renderQuadList(List<BakedQuad> quads, BufferBuilder buf, int color) {
-        if (quads == null || quads.isEmpty()) return;
+        if (quads == null || quads.isEmpty()) {
+            return;
+        }
         for (BakedQuad quad : quads) {
             LightUtil.renderQuadColor(buf, quad, color);
         }
@@ -114,7 +113,9 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         double vy = velocity.y;
         double vz = velocity.z;
         double horizontal = Math.sqrt(vx * vx + vz * vz);
-        if (horizontal < 1.0E-6 && Math.abs(vy) < 1.0E-6) return;
+        if (horizontal < 1.0E-6 && Math.abs(vy) < 1.0E-6) {
+            return;
+        }
 
         float yaw = (float) (Math.atan2(vx, vz) * 180.0D / Math.PI);
         float pitch = (float) (-Math.atan2(vy, horizontal) * 180.0D / Math.PI);

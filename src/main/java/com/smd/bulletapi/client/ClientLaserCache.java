@@ -57,9 +57,13 @@ public class ClientLaserCache {
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.world == null || mc.player == null || mc.isGamePaused()) return;
+        if (mc.world == null || mc.player == null || mc.isGamePaused()) {
+            return;
+        }
 
         for (ClientLaser laser : lasers.values()) {
             laser.tick();

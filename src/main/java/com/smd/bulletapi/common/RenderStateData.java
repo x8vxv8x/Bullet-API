@@ -14,7 +14,7 @@ public final class RenderStateData {
             return null;
         }
         String value = data.getString(KEY_RENDER_STATE);
-        return value == null || value.isEmpty() ? null : value;
+        return value.isEmpty() ? null : value;
     }
 
     public static void setRenderState(NBTTagCompound data, String renderState) {

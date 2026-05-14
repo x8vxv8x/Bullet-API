@@ -46,7 +46,9 @@ public final class SummonRegistry {
     }
 
     public static void bootstrapDefaults() {
-        if (bootstrapped) return;
+        if (bootstrapped) {
+            return;
+        }
         bootstrapped = true;
 
         register(new FairyOrbBlueprint());
