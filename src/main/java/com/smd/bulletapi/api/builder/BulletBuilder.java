@@ -8,12 +8,12 @@ import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.spi.bullet.IBulletCollisionFilter;
 import com.smd.bulletapi.spi.bullet.IBulletHitBehavior;
 import com.smd.bulletapi.spi.bullet.IBulletMotionController;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -30,7 +30,7 @@ public class BulletBuilder {
     private int color = 0xFFFFFF;
     private float size = 0.5f;
     private String rendererType;
-    private final NBTTagCompound customData = new NBTTagCompound();
+    private final DataPayload customData = new DataPayload();
     private ICollisionShape collisionShape;
     private IBulletHitBehavior hitBehavior;
     private IBulletMotionController motionController;
@@ -197,6 +197,6 @@ public class BulletBuilder {
     public int getColor() { return color; }
     public float getSize() { return size; }
     public String getRendererType() { return rendererType; }
-    public NBTTagCompound getCustomData() { return customData.copy(); }
+    public DataPayload getCustomData() { return customData.copy(); }
     public String getPresetId() { return presetId; }
 }

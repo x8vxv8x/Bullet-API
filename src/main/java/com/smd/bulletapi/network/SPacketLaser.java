@@ -3,9 +3,9 @@ package com.smd.bulletapi.network;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientLaserCache;
 import com.smd.bulletapi.common.RenderDataRefs;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.server.Laser;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -63,9 +63,9 @@ public class SPacketLaser implements IMessage {
     /** 渲染器类型（SPAWN 时有效） */
     @Nullable
     private String rendererType;
-    /** 自定义 NBT 数据（SPAWN 时有效） */
+    /** 自定义渲染参数（SPAWN 时有效） */
     @Nullable
-    private NBTTagCompound customData;
+    private DataPayload customData;
     /** 是否引用预设 */
     private boolean usePresetRef;
     /** 预设 ID */
@@ -145,7 +145,7 @@ public class SPacketLaser implements IMessage {
         RenderDataRefs.LaserRenderData base = (presetId != null) ? RenderDataRefs.laserFromPreset(presetId) : null;
 
         if (base != null) {
-            NBTTagCompound customDiff = RenderDataRefs.diff(actual.customData, base.customData);
+            DataPayload customDiff = RenderDataRefs.diff(actual.customData, base.customData);
             p.usePresetRef = true;
             p.presetId = presetId;
             p.flags = RenderDataRefs.laserDiffFlags(actual, base, customDiff);
@@ -224,7 +224,7 @@ public class SPacketLaser implements IMessage {
             buf.writeFloat(thickness);
             buf.writeInt(color);
             ByteBufUtils.writeUTF8String(buf, rendererType != null ? rendererType : "");
-            ByteBufUtils.writeTag(buf, customData);
+            (customData == null ? new DataPayload() : customData).writeTo(buf);
         }
     }
 
@@ -242,7 +242,7 @@ public class SPacketLaser implements IMessage {
             thickness = buf.readFloat();
             color = buf.readInt();
             rendererType = ByteBufUtils.readUTF8String(buf);
-            customData = ByteBufUtils.readTag(buf);
+            customData = DataPayload.readFrom(buf);
         }
     }
 
@@ -288,7 +288,7 @@ public class SPacketLaser implements IMessage {
             ByteBufUtils.writeUTF8String(buf, rendererType != null ? rendererType : "");
         }
         if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-            ByteBufUtils.writeTag(buf, customData);
+            (customData == null ? new DataPayload() : customData).writeTo(buf);
         }
     }
 
@@ -306,7 +306,7 @@ public class SPacketLaser implements IMessage {
             rendererType = ByteBufUtils.readUTF8String(buf);
         }
         if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-            customData = ByteBufUtils.readTag(buf);
+            customData = DataPayload.readFrom(buf);
         }
     }
 
@@ -361,7 +361,7 @@ public class SPacketLaser implements IMessage {
             float thickness = msg.thickness;
             int color = msg.color;
             String rendererType = msg.rendererType;
-            NBTTagCompound customData = msg.customData;
+            DataPayload customData = msg.customData;
 
             if (msg.usePresetRef) {
                 RenderDataRefs.LaserRenderData base = RenderDataRefs.laserFromPreset(msg.presetId);

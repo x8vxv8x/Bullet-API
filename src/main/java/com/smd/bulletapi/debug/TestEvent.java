@@ -35,7 +35,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-//@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber
 public class TestEvent {
     private static final String TEST_TEXTURE = "bulletapi:textures/entity/bullet.png";
     private static final String TEST_RENDER_STATE = "rage";
@@ -57,6 +57,9 @@ public class TestEvent {
        if (player.isSneaking() && player.isInWater()) {
             spawnFairyOrbTest(player);
         }
+       if(player.isInWater()){
+           spawnLaserEyeTest(player);
+       }
     }
 
     @SubscribeEvent

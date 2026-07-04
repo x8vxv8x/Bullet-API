@@ -1,11 +1,10 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.network.SPacketBulletVisual;
 import net.minecraft.client.Minecraft;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -21,39 +20,43 @@ import java.util.Map;
 abstract class AbstractClientBulletCache {
     private final Map<Integer, ClientBullet> entries = new HashMap<>();
 
-    protected final void spawnEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
+    protected final void spawnEntry(int id, double positionX, double positionY, double positionZ,
+                                    double velocityX, double velocityY, double velocityZ,
+                                    int life, float damage,
                                     ResourceLocation texture, int color, float size, String rendererType,
-                                    NBTTagCompound customData) {
-        ClientBullet entry = createEntry(id, position, velocity, life, damage,
+                                    DataPayload customData) {
+        ClientBullet entry = createEntry(id, positionX, positionY, positionZ, velocityX, velocityY, velocityZ, life, damage,
                 texture, color, size, rendererType, customData);
         entry.setRenderer(ClientRendererResolvers.createBulletRenderer(texture, rendererType, customData));
         entries.put(id, entry);
     }
 
-    protected ClientBullet createEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
+    protected ClientBullet createEntry(int id, double positionX, double positionY, double positionZ,
+                                       double velocityX, double velocityY, double velocityZ,
+                                       int life, float damage,
                                        ResourceLocation texture, int color, float size, String rendererType,
-                                       NBTTagCompound customData) {
-        return new ClientBullet(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
+                                       DataPayload customData) {
+        return new ClientBullet(id, positionX, positionY, positionZ, velocityX, velocityY, velocityZ,
+                life, damage, texture, color, size, rendererType, customData);
     }
 
-    protected final void updateEntryVelocity(int id, Vec3d velocity) {
+    protected final void applyEntryUpdate(int id, int flags,
+                                          double positionX, double positionY, double positionZ,
+                                          double velocityX, double velocityY, double velocityZ,
+                                          Integer life) {
         ClientBullet entry = entries.get(id);
         if (entry != null) {
-            entry.setVelocity(velocity);
-        }
-    }
-
-    protected final void applyEntrySnapshot(int id, Vec3d position, Vec3d velocity, int life) {
-        ClientBullet entry = entries.get(id);
-        if (entry != null) {
-            entry.applySnapshot(position, velocity, life);
-        }
-    }
-
-    protected final void applyEntryUpdate(int id, Vec3d position, Vec3d velocity, Integer life) {
-        ClientBullet entry = entries.get(id);
-        if (entry != null) {
-            entry.applyUpdate(position, velocity, life);
+            entry.applyUpdate(
+                    (flags & com.smd.bulletapi.network.SPacketDanmaku.FLAG_POSITION) != 0,
+                    positionX,
+                    positionY,
+                    positionZ,
+                    (flags & com.smd.bulletapi.network.SPacketDanmaku.FLAG_VELOCITY) != 0,
+                    velocityX,
+                    velocityY,
+                    velocityZ,
+                    life
+            );
         }
     }
 

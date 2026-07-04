@@ -2,10 +2,10 @@ package com.smd.bulletapi.common.summon.blueprint.impl;
 
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.api.summon.AbstractOrbitingSummonBlueprint;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootBulletPattern;
-import net.minecraft.nbt.NBTTagCompound;
 
 public class FairyOrbBlueprint extends AbstractOrbitingSummonBlueprint {
     public FairyOrbBlueprint() {
@@ -14,7 +14,7 @@ public class FairyOrbBlueprint extends AbstractOrbitingSummonBlueprint {
 
     @Override
     protected void configure(SummonDefinition.Builder builder) {
-        NBTTagCompound fairyData = new NBTTagCompound();
+        DataPayload fairyData = new DataPayload();
         fairyData.setFloat("scale", 0.85f);
 
         builder.life(6000)

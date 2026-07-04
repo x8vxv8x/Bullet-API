@@ -1,9 +1,8 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -19,21 +18,30 @@ public class ClientSummonCache extends AbstractClientBulletCache {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
-    public void spawnSummon(int id, Vec3d position, Vec3d velocity, int life, float damage,
+    public void spawnSummon(int id, double positionX, double positionY, double positionZ,
+                            double velocityX, double velocityY, double velocityZ,
+                            int life, float damage,
                             ResourceLocation texture, int color, float size, String rendererType,
-                            NBTTagCompound customData) {
-        spawnEntry(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
+                            DataPayload customData) {
+        spawnEntry(id, positionX, positionY, positionZ, velocityX, velocityY, velocityZ,
+                life, damage, texture, color, size, rendererType, customData);
     }
 
     @Override
-    protected ClientBullet createEntry(int id, Vec3d position, Vec3d velocity, int life, float damage,
+    protected ClientBullet createEntry(int id, double positionX, double positionY, double positionZ,
+                                       double velocityX, double velocityY, double velocityZ,
+                                       int life, float damage,
                                        ResourceLocation texture, int color, float size, String rendererType,
-                                       NBTTagCompound customData) {
-        return new ClientSummon(id, position, velocity, life, damage, texture, color, size, rendererType, customData);
+                                       DataPayload customData) {
+        return new ClientSummon(id, positionX, positionY, positionZ, velocityX, velocityY, velocityZ,
+                life, damage, texture, color, size, rendererType, customData);
     }
 
-    public void updateSummon(int id, Vec3d position, Vec3d velocity, Integer life) {
-        applyEntryUpdate(id, position, velocity, life);
+    public void updateSummon(int id, int flags,
+                             double positionX, double positionY, double positionZ,
+                             double velocityX, double velocityY, double velocityZ,
+                             Integer life) {
+        applyEntryUpdate(id, flags, positionX, positionY, positionZ, velocityX, velocityY, velocityZ, life);
     }
 
     public void updateVisual(int id, int flags, ResourceLocation texture, String rendererType, String renderState) {

@@ -1,7 +1,7 @@
 package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.client.ClientLaser;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -78,7 +78,7 @@ public class LaserBeamRenderer implements ILaserRenderer {
             Vec3d e2 = e.subtract(right);
 
             int color = laser.getColor();
-            NBTTagCompound data = laser.getCustomData();
+            DataPayload data = laser.getCustomData();
             float a = data != null && data.hasKey("alpha") ? data.getFloat("alpha") : 0.85f;
             boolean useHelper = data != null && data.hasKey("use_helper") && data.getBoolean("use_helper");
             if (useHelper) {

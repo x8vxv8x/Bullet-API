@@ -95,6 +95,14 @@
 - `ISummonAttackPattern`
 - `IFormationStrategy`
 
+## 参数载荷补充
+
+当前版本里对象自定义参数统一走轻量 payload：
+
+- 外部仍然用 `set(key, value)` 写参数
+- 渲染器和运行时行为仍然按 key 读取参数
+- 但内部不再把这些高频参数建立在 `NBTTagCompound` 之上
+
 ### 其他扩展
 
 - `ICombatRelationResolver`

@@ -5,6 +5,7 @@ import com.smd.bulletapi.api.runtime.IBulletActor;
 import com.smd.bulletapi.api.snapshot.BulletSnapshot;
 import com.smd.bulletapi.api.snapshot.LaserSnapshot;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
 import com.smd.bulletapi.common.runtime.danmaku.DanmakuSnapshotFactory;
 import com.smd.bulletapi.common.runtime.danmaku.DanmakuSyncService;
@@ -31,7 +32,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.RayTraceResult;
@@ -56,6 +56,11 @@ public class DanmakuManager {
     private final DanmakuSnapshotFactory snapshotFactory = new DanmakuSnapshotFactory();
     private final DanmakuSyncService syncService = new DanmakuSyncService();
     private final AtomicInteger nextId = new AtomicInteger(0);
+    private final List<Laser> tickLasersScratch = new ArrayList<>();
+    private final List<Bullet> tickBulletsScratch = new ArrayList<>();
+    private final List<Integer> deadLaserIdsScratch = new ArrayList<>();
+    private final List<Integer> deadBulletIdsScratch = new ArrayList<>();
+    private final List<EntityLivingBase> fallbackEntitiesScratch = new ArrayList<>();
 
     private DanmakuManager() {}
 
@@ -73,7 +78,7 @@ public class DanmakuManager {
 
     public int spawnBullet(World world, Vec3d position, Vec3d velocity, int life, float damage,
                            String texture, int color, float size, String rendererType,
-                           NBTTagCompound customData, ICollisionShape collisionShape,
+                           DataPayload customData, ICollisionShape collisionShape,
                            IBulletHitBehavior hitBehavior,
                            IBulletMotionController motionController, Consumer<IBulletActor> tickCallback,
                            IBulletCollisionFilter collisionFilter, boolean onlyPlayer,
@@ -183,7 +188,7 @@ public class DanmakuManager {
 
     public int spawnLaser(World world, Vec3d start, Vec3d direction, double maxLength,
                           float thickness, int life, float damage, int color,
-                          String rendererType, NBTTagCompound customData,
+                          String rendererType, DataPayload customData,
                           boolean penetrate, boolean followShooter,
                           boolean onlyPlayer, boolean blockStops,
                           Vec3d startOffset,
@@ -298,8 +303,9 @@ public class DanmakuManager {
                 laser.update(world);
             }
 
-            List<Laser> lasers = new ArrayList<>(laserMap.values());
-            for (Laser laser : lasers) {
+            tickLasersScratch.clear();
+            tickLasersScratch.addAll(laserMap.values());
+            for (Laser laser : tickLasersScratch) {
                 if (laser.isDead()) {
                     continue;
                 }
@@ -326,7 +332,9 @@ public class DanmakuManager {
                 syncLaser(world, laser, laserFlags);
             }
 
-            removeDeadLasers(world, laserMap, LifecycleRemoveReason.EXPIRED);
+            removeDeadLasers(world, laserMap, LifecycleRemoveReason.EXPIRED, deadLaserIdsScratch);
+            tickLasersScratch.clear();
+            deadLaserIdsScratch.clear();
         }
 
         Map<Integer, Bullet> map = bulletStore.getWorldEntries(world);
@@ -335,10 +343,11 @@ public class DanmakuManager {
                 bullet.update(world);
             }
 
-            List<Bullet> bullets = new ArrayList<>(map.values());
             List<EntityLivingBase> fallbackEntities = null;
+            tickBulletsScratch.clear();
+            tickBulletsScratch.addAll(map.values());
 
-            for (Bullet bullet : bullets) {
+            for (Bullet bullet : tickBulletsScratch) {
                 ICollisionShape shape = bullet.getCollisionShape();
                 if (shape == null || bullet.isDead()) {
                     continue;
@@ -367,7 +376,7 @@ public class DanmakuManager {
                     }
                 } else {
                     if (fallbackEntities == null && shape.getBroadphaseRadius() <= 0.0D) {
-                        fallbackEntities = buildFallbackEntities(world);
+                        fallbackEntities = buildFallbackEntities(world, fallbackEntitiesScratch);
                     }
                     List<EntityLivingBase> candidates = getCollisionCandidates(world, bullet, shape, fallbackEntities);
                     for (EntityLivingBase entity : candidates) {
@@ -387,7 +396,10 @@ public class DanmakuManager {
                 }
             }
 
-            removeDeadBullets(world, map, LifecycleRemoveReason.EXPIRED);
+            removeDeadBullets(world, map, LifecycleRemoveReason.EXPIRED, deadBulletIdsScratch);
+            tickBulletsScratch.clear();
+            deadBulletIdsScratch.clear();
+            fallbackEntitiesScratch.clear();
         }
     }
 
@@ -395,7 +407,7 @@ public class DanmakuManager {
                                                           List<EntityLivingBase> fallbackEntities) {
         double radius = shape.getBroadphaseRadius();
         if (radius <= 0.0D) {
-            return fallbackEntities == null ? buildFallbackEntities(world) : fallbackEntities;
+            return fallbackEntities == null ? buildFallbackEntities(world, fallbackEntitiesScratch) : fallbackEntities;
         }
 
         double x = bullet.getPosX();
@@ -405,8 +417,8 @@ public class DanmakuManager {
         return world.getEntitiesWithinAABB(EntityLivingBase.class, searchBox);
     }
 
-    private List<EntityLivingBase> buildFallbackEntities(World world) {
-        List<EntityLivingBase> fallbackEntities = new ArrayList<>();
+    private List<EntityLivingBase> buildFallbackEntities(World world, List<EntityLivingBase> fallbackEntities) {
+        fallbackEntities.clear();
         for (Entity entity : world.loadedEntityList) {
             if (!entity.isDead && entity instanceof EntityLivingBase) {
                 fallbackEntities.add((EntityLivingBase) entity);
@@ -612,8 +624,8 @@ public class DanmakuManager {
         return relation == CombatRelation.ALLOW || defaultAllowed;
     }
 
-    private void removeDeadBullets(World world, Map<Integer, Bullet> map, LifecycleRemoveReason reason) {
-        List<Integer> deadIds = new ArrayList<>();
+    private void removeDeadBullets(World world, Map<Integer, Bullet> map, LifecycleRemoveReason reason, List<Integer> deadIds) {
+        deadIds.clear();
         for (Map.Entry<Integer, Bullet> entry : map.entrySet()) {
             if (entry.getValue().isDead()) {
                 deadIds.add(entry.getKey());
@@ -624,8 +636,8 @@ public class DanmakuManager {
         }
     }
 
-    private void removeDeadLasers(World world, Map<Integer, Laser> map, LifecycleRemoveReason reason) {
-        List<Integer> deadIds = new ArrayList<>();
+    private void removeDeadLasers(World world, Map<Integer, Laser> map, LifecycleRemoveReason reason, List<Integer> deadIds) {
+        deadIds.clear();
         for (Map.Entry<Integer, Laser> entry : map.entrySet()) {
             if (entry.getValue().isDead()) {
                 deadIds.add(entry.getKey());

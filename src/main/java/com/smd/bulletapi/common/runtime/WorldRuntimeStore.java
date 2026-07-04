@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * 统一管理 world -> id -> runtime object 的存储和常见只读查询。
@@ -100,6 +102,37 @@ public class WorldRuntimeStore<T extends RuntimeObject> {
     public <S> S getLiveSnapshot(World world, int id, RuntimeSnapshotFactory<? super T, S> snapshotFactory) {
         T runtime = getLive(world, id);
         return runtime == null ? null : snapshotFactory.create(runtime);
+    }
+
+    public void forEachLive(World world, Consumer<? super T> consumer) {
+        if (consumer == null) {
+            return;
+        }
+        Map<Integer, T> entries = worldEntries.get(world);
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (T runtime : entries.values()) {
+            if (!runtime.isDead()) {
+                consumer.accept(runtime);
+            }
+        }
+    }
+
+    public void forEachLiveEntry(World world, BiConsumer<Integer, ? super T> consumer) {
+        if (consumer == null) {
+            return;
+        }
+        Map<Integer, T> entries = worldEntries.get(world);
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<Integer, T> entry : entries.entrySet()) {
+            T runtime = entry.getValue();
+            if (!runtime.isDead()) {
+                consumer.accept(entry.getKey(), runtime);
+            }
+        }
     }
 
     public List<T> getEntriesSnapshot(World world) {

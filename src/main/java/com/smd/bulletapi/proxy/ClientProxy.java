@@ -31,7 +31,7 @@ public class ClientProxy extends CommonProxy {
         LaserRendererRegistry.register("laser_none", data -> LaserNoneRenderer.INSTANCE);
         LaserRendererRegistry.register("laser_poly", data -> LaserPolyRenderer.INSTANCE);
 
-        ClientDanmakuCache.INSTANCE = new ClientDanmakuCache(); // 注册客户端事件
+        ClientDanmakuCache.INSTANCE = new ClientDanmakuCache();
         ClientLaserCache.INSTANCE = new ClientLaserCache();
         ClientSummonCache.INSTANCE = new ClientSummonCache();
         MinecraftForge.EVENT_BUS.register(RenderHandler.class);

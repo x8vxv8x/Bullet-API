@@ -1,7 +1,7 @@
 package com.smd.bulletapi.common;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 
 @InternalApi
 public final class RenderStateData {
@@ -9,7 +9,7 @@ public final class RenderStateData {
 
     private RenderStateData() {}
 
-    public static String getRenderState(NBTTagCompound data) {
+    public static String getRenderState(DataPayload data) {
         if (data == null || !data.hasKey(KEY_RENDER_STATE)) {
             return null;
         }
@@ -17,7 +17,7 @@ public final class RenderStateData {
         return value.isEmpty() ? null : value;
     }
 
-    public static void setRenderState(NBTTagCompound data, String renderState) {
+    public static void setRenderState(DataPayload data, String renderState) {
         if (data == null) {
             return;
         }

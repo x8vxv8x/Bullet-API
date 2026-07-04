@@ -14,11 +14,8 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 @Mod(modid = Tags.MOD_ID, name = Tags.MOD_NAME, version = Tags.VERSION)
 public class BulletAPI {
 
-    @Mod.Instance(Tags.MOD_ID)
-    public static BulletAPI instance;
-
     @SidedProxy(clientSide = "com.smd.bulletapi.proxy.ClientProxy",
-            serverSide = "com.smd.bulletapi.proxy.CommonProxy")
+                serverSide = "com.smd.bulletapi.proxy.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler

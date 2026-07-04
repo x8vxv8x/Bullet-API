@@ -2,6 +2,7 @@ package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.client.ClientBullet;
 import com.smd.bulletapi.common.RenderStateData;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -10,9 +11,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.model.pipeline.LightUtil;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -24,7 +23,6 @@ import java.util.List;
 public abstract class AbstractModelRenderer implements IBulletRenderer {
     @Override
     public void beginRender() {
-        // 模型渲染需要写入深度并开启背面剔除，否则会出现“透视穿模”效果。
         GlStateManager.enableDepth();
         GlStateManager.depthMask(true);
         GlStateManager.enableCull();
@@ -33,7 +31,6 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
 
     @Override
     public void endRender() {
-        // 恢复为弹幕渲染主循环的通用状态。
         GlStateManager.enableBlend();
         GlStateManager.disableCull();
         GlStateManager.depthMask(false);
@@ -50,7 +47,7 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         double y = bullet.getRenderY(partialTicks) - viewY;
         double z = bullet.getRenderZ(partialTicks) - viewZ;
 
-        NBTTagCompound data = bullet.getCustomData();
+        DataPayload data = bullet.getCustomData();
         String renderState = RenderStateData.getRenderState(data);
         float scale = resolveFloat(data, "scale", renderState, bullet.getSize());
         String rotMode = resolveString(data, "rot_mode", renderState, "velocity");
@@ -91,7 +88,7 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         }
     }
 
-    private static void applyRotation(ClientBullet bullet, String mode, NBTTagCompound data) {
+    private static void applyRotation(ClientBullet bullet, String mode, DataPayload data) {
         if ("face_camera".equalsIgnoreCase(mode)) {
             GlStateManager.rotate(-Minecraft.getMinecraft().getRenderManager().playerViewY, 0F, 1F, 0F);
             GlStateManager.rotate(Minecraft.getMinecraft().getRenderManager().playerViewX, 1F, 0F, 0F);
@@ -108,10 +105,9 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
             return;
         }
 
-        Vec3d velocity = bullet.getVelocity();
-        double vx = velocity.x;
-        double vy = velocity.y;
-        double vz = velocity.z;
+        double vx = bullet.getVelocityX();
+        double vy = bullet.getVelocityY();
+        double vz = bullet.getVelocityZ();
         double horizontal = Math.sqrt(vx * vx + vz * vz);
         if (horizontal < 1.0E-6 && Math.abs(vy) < 1.0E-6) {
             return;
@@ -123,7 +119,7 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         GlStateManager.rotate(pitch, 1F, 0F, 0F);
     }
 
-    private static float resolveFloat(NBTTagCompound data, String key, String renderState, float defaultValue) {
+    private static float resolveFloat(DataPayload data, String key, String renderState, float defaultValue) {
         String scopedKey = RenderStateData.scopedKey(key, renderState);
         if (data.hasKey(scopedKey)) {
             return data.getFloat(scopedKey);
@@ -131,7 +127,7 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         return data.hasKey(key) ? data.getFloat(key) : defaultValue;
     }
 
-    private static int resolveInt(NBTTagCompound data, String key, String renderState, int defaultValue) {
+    private static int resolveInt(DataPayload data, String key, String renderState, int defaultValue) {
         String scopedKey = RenderStateData.scopedKey(key, renderState);
         if (data.hasKey(scopedKey)) {
             return data.getInteger(scopedKey);
@@ -139,7 +135,7 @@ public abstract class AbstractModelRenderer implements IBulletRenderer {
         return data.hasKey(key) ? data.getInteger(key) : defaultValue;
     }
 
-    private static String resolveString(NBTTagCompound data, String key, String renderState, String defaultValue) {
+    private static String resolveString(DataPayload data, String key, String renderState, String defaultValue) {
         String scopedKey = RenderStateData.scopedKey(key, renderState);
         if (data.hasKey(scopedKey)) {
             return data.getString(scopedKey);

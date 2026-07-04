@@ -6,11 +6,11 @@ import com.smd.bulletapi.api.preset.LaserPreset;
 import com.smd.bulletapi.api.preset.LaserPresetRegistry;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.DanmakuManager;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -25,7 +25,7 @@ public class LaserBuilder {
     private float damage = 1.0f;
     private int color = 0xFF3333;
     private String rendererType = "laser_beam";
-    private final NBTTagCompound customData = new NBTTagCompound();
+    private final DataPayload customData = new DataPayload();
     private boolean penetrate = false;
     private boolean followShooter = true;
     private boolean onlyPlayer = false;
@@ -228,6 +228,6 @@ public class LaserBuilder {
     public float getThickness() { return thickness; }
     public int getColor() { return color; }
     public String getRendererType() { return rendererType; }
-    public NBTTagCompound getCustomData() { return customData.copy(); }
+    public DataPayload getCustomData() { return customData.copy(); }
     public String getPresetId() { return presetId; }
 }

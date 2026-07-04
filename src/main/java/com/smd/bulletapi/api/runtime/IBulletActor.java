@@ -2,9 +2,9 @@ package com.smd.bulletapi.api.runtime;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.AttackSourceInfo;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 
 @PublicApi
@@ -25,8 +25,8 @@ public interface IBulletActor {
     int getColor();
     float getSize();
     String getRendererType();
-    NBTTagCompound getCustomData();
-    void setCustomData(NBTTagCompound customData);
+    DataPayload getCustomData();
+    void setCustomData(DataPayload customData);
     boolean isOnlyPlayer();
     EntityLivingBase getShooter();
     ItemStack getShooterHeldItem();

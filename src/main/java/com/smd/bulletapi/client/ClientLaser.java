@@ -2,7 +2,7 @@ package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.render.ILaserRenderer;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.util.math.Vec3d;
 
 @InternalApi
@@ -17,14 +17,14 @@ public class ClientLaser {
     private final float thickness;
     private final int color;
     private final String rendererType;
-    private final NBTTagCompound customData;
+    private final DataPayload customData;
     private ILaserRenderer renderer;
     private boolean initialized;
     private long lastSnapshotTick;
 
     public ClientLaser(int id, long tick, Vec3d start, Vec3d direction, double length,
                        float thickness, int color, String rendererType,
-                       NBTTagCompound customData) {
+                       DataPayload customData) {
         this.id = id;
         this.start = start;
         this.prevStart = start;
@@ -35,7 +35,7 @@ public class ClientLaser {
         this.thickness = thickness;
         this.color = color;
         this.rendererType = rendererType;
-        this.customData = customData == null ? new NBTTagCompound() : customData;
+        this.customData = customData == null ? new DataPayload() : customData;
         this.initialized = true;
         this.lastSnapshotTick = tick;
     }
@@ -131,7 +131,7 @@ public class ClientLaser {
     public float getThickness() { return thickness; }
     public int getColor() { return color; }
     public String getRendererType() { return rendererType; }
-    public NBTTagCompound getCustomData() { return customData; }
+    public DataPayload getCustomData() { return customData; }
     public ILaserRenderer getRenderer() { return renderer; }
     public void setRenderer(ILaserRenderer renderer) { this.renderer = renderer; }
 

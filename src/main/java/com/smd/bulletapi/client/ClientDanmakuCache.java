@@ -1,9 +1,8 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -18,14 +17,20 @@ public class ClientDanmakuCache extends AbstractClientBulletCache {
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this);
     }
 
-    public void spawnBullet(int id, Vec3d position, Vec3d velocity, int maxLife, float damage,
+    public void spawnBullet(int id, double positionX, double positionY, double positionZ,
+                            double velocityX, double velocityY, double velocityZ,
+                            int maxLife, float damage,
                             ResourceLocation texture, int color, float size, String rendererType,
-                            NBTTagCompound customData) {
-        spawnEntry(id, position, velocity, maxLife, damage, texture, color, size, rendererType, customData);
+                            DataPayload customData) {
+        spawnEntry(id, positionX, positionY, positionZ, velocityX, velocityY, velocityZ,
+                maxLife, damage, texture, color, size, rendererType, customData);
     }
 
-    public void updateBullet(int id, Vec3d position, Vec3d velocity, Integer life) {
-        applyEntryUpdate(id, position, velocity, life);
+    public void updateBullet(int id, int flags,
+                             double positionX, double positionY, double positionZ,
+                             double velocityX, double velocityY, double velocityZ,
+                             Integer life) {
+        applyEntryUpdate(id, flags, positionX, positionY, positionZ, velocityX, velocityY, velocityZ, life);
     }
 
     public void updateVisual(int id, int flags, ResourceLocation texture, String rendererType, String renderState) {

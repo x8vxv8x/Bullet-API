@@ -3,10 +3,10 @@ package com.smd.bulletapi.common.summon;
 import com.smd.bulletapi.api.SummonApi;
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.api.runtime.ISummonActor;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.summon.SummonTargetSource;
 import com.smd.bulletapi.server.summon.SummonBullet;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -75,11 +75,11 @@ public class SummonContext {
     }
 
     public String getMode() {
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime != null && runtime.hasKey(MODE_KEY)) {
             return runtime.getString(MODE_KEY);
         }
-        NBTTagCompound root = getRootData(false);
+        DataPayload root = getRootData(false);
         return root != null && root.hasKey(MODE_KEY) ? root.getString(MODE_KEY) : null;
     }
 
@@ -101,11 +101,11 @@ public class SummonContext {
         if (key == null || key.isEmpty()) {
             return false;
         }
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime != null && runtime.hasKey(key)) {
             return true;
         }
-        NBTTagCompound root = getRootData(false);
+        DataPayload root = getRootData(false);
         return root != null && root.hasKey(key);
     }
 
@@ -113,27 +113,27 @@ public class SummonContext {
         if (key == null || key.isEmpty()) {
             return false;
         }
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         return runtime != null && runtime.hasKey(key);
     }
 
     public int getInt(String key, int defaultValue) {
-        NBTTagCompound data = getParamContainer(key);
+        DataPayload data = getParamContainer(key);
         return data == null ? defaultValue : data.getInteger(key);
     }
 
     public float getFloat(String key, float defaultValue) {
-        NBTTagCompound data = getParamContainer(key);
+        DataPayload data = getParamContainer(key);
         return data == null ? defaultValue : data.getFloat(key);
     }
 
     public boolean getBool(String key, boolean defaultValue) {
-        NBTTagCompound data = getParamContainer(key);
+        DataPayload data = getParamContainer(key);
         return data == null ? defaultValue : data.getBoolean(key);
     }
 
     public String getString(String key, String defaultValue) {
-        NBTTagCompound data = getParamContainer(key);
+        DataPayload data = getParamContainer(key);
         return data == null ? defaultValue : data.getString(key);
     }
 
@@ -179,7 +179,7 @@ public class SummonContext {
     }
 
     public int consumeInt(String key, int defaultValue) {
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime == null || !runtime.hasKey(key)) {
             return defaultValue;
         }
@@ -189,7 +189,7 @@ public class SummonContext {
     }
 
     public float consumeFloat(String key, float defaultValue) {
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime == null || !runtime.hasKey(key)) {
             return defaultValue;
         }
@@ -199,7 +199,7 @@ public class SummonContext {
     }
 
     public boolean consumeBool(String key, boolean defaultValue) {
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime == null || !runtime.hasKey(key)) {
             return defaultValue;
         }
@@ -209,7 +209,7 @@ public class SummonContext {
     }
 
     public String consumeString(String key, String defaultValue) {
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime == null || !runtime.hasKey(key)) {
             return defaultValue;
         }
@@ -234,32 +234,32 @@ public class SummonContext {
         SummonApi.handle(world, summon.getId()).setVisual(texture, rendererType, renderState);
     }
 
-    private NBTTagCompound getParamContainer(String key) {
+    private DataPayload getParamContainer(String key) {
         if (key == null || key.isEmpty()) {
             return null;
         }
-        NBTTagCompound runtime = getRuntimeData(false);
+        DataPayload runtime = getRuntimeData(false);
         if (runtime != null && runtime.hasKey(key)) {
             return runtime;
         }
-        NBTTagCompound root = getRootData(false);
+        DataPayload root = getRootData(false);
         if (root != null && root.hasKey(key)) {
             return root;
         }
         return null;
     }
 
-    private NBTTagCompound getRootData(boolean create) {
-        NBTTagCompound root = summon.getCustomData();
+    private DataPayload getRootData(boolean create) {
+        DataPayload root = summon.getCustomData();
         if (root == null && create) {
-            root = new NBTTagCompound();
+            root = new DataPayload();
             summon.setCustomData(root);
         }
         return root;
     }
 
-    private NBTTagCompound getRuntimeData(boolean create) {
-        NBTTagCompound root = getRootData(create);
+    private DataPayload getRuntimeData(boolean create) {
+        DataPayload root = getRootData(create);
         if (root == null) {
             return null;
         }
@@ -269,15 +269,15 @@ public class SummonContext {
         if (!create) {
             return null;
         }
-        NBTTagCompound runtime = new NBTTagCompound();
+        DataPayload runtime = new DataPayload();
         root.setTag(RUNTIME_ROOT_KEY, runtime);
         summon.setCustomData(root);
         return runtime;
     }
 
-    private void writeRuntime(java.util.function.Consumer<NBTTagCompound> consumer) {
-        NBTTagCompound root = getRootData(true);
-        NBTTagCompound runtime = getRuntimeData(true);
+    private void writeRuntime(java.util.function.Consumer<DataPayload> consumer) {
+        DataPayload root = getRootData(true);
+        DataPayload runtime = getRuntimeData(true);
         consumer.accept(runtime);
         if (runtime.isEmpty()) {
             root.removeTag(RUNTIME_ROOT_KEY);

@@ -7,13 +7,13 @@ import com.smd.bulletapi.api.preset.BulletPreset;
 import com.smd.bulletapi.api.preset.BulletPresetRegistry;
 import com.smd.bulletapi.api.preset.LaserPreset;
 import com.smd.bulletapi.api.preset.LaserPresetRegistry;
+import com.smd.bulletapi.common.data.DataPayload;
+import com.smd.bulletapi.common.data.Payloads;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonRegistry;
 import com.smd.bulletapi.server.Bullet;
 import com.smd.bulletapi.server.Laser;
 import com.smd.bulletapi.server.summon.SummonBullet;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
 
 @InternalApi
 public final class RenderDataRefs {
@@ -113,7 +113,7 @@ public final class RenderDataRefs {
         return bulletDiffFlags(actual, base, diff(actual == null ? null : actual.customData, base == null ? null : base.customData));
     }
 
-    public static int bulletDiffFlags(BulletRenderData actual, BulletRenderData base, NBTTagCompound customDataDiff) {
+    public static int bulletDiffFlags(BulletRenderData actual, BulletRenderData base, DataPayload customDataDiff) {
         if (actual == null || base == null) {
             return FLAG_TEXTURE | FLAG_COLOR | FLAG_SIZE | FLAG_RENDERER | FLAG_CUSTOM_DATA;
         }
@@ -140,7 +140,7 @@ public final class RenderDataRefs {
         return laserDiffFlags(actual, base, diff(actual == null ? null : actual.customData, base == null ? null : base.customData));
     }
 
-    public static int laserDiffFlags(LaserRenderData actual, LaserRenderData base, NBTTagCompound customDataDiff) {
+    public static int laserDiffFlags(LaserRenderData actual, LaserRenderData base, DataPayload customDataDiff) {
         if (actual == null || base == null) {
             return FLAG_THICKNESS | FLAG_COLOR | FLAG_RENDERER | FLAG_CUSTOM_DATA;
         }
@@ -160,41 +160,20 @@ public final class RenderDataRefs {
         return flags;
     }
 
-    public static NBTTagCompound diff(NBTTagCompound actual, NBTTagCompound base) {
-        if (actual == null || actual.isEmpty()) {
-            return new NBTTagCompound();
-        }
-        if (base == null || base.isEmpty()) {
-            return actual.copy();
-        }
-        NBTTagCompound diff = new NBTTagCompound();
-        for (String key : actual.getKeySet()) {
-            NBTBase actualTag = actual.getTag(key);
-            NBTBase baseTag = base.getTag(key);
-            if (!actualTag.equals(baseTag)) {
-                diff.setTag(key, actualTag.copy());
-            }
-        }
-        return diff;
+    public static DataPayload diff(DataPayload actual, DataPayload base) {
+        return Payloads.diff(actual, base);
     }
 
-    public static NBTTagCompound merge(NBTTagCompound base, NBTTagCompound diff) {
-        NBTTagCompound merged = copyTag(base);
-        if (diff == null || diff.isEmpty()) {
-            return merged;
-        }
-        for (String key : diff.getKeySet()) {
-            merged.setTag(key, diff.getTag(key).copy());
-        }
-        return merged;
+    public static DataPayload merge(DataPayload base, DataPayload diff) {
+        return Payloads.merge(base, diff);
     }
 
-    public static boolean isEmpty(NBTTagCompound tag) {
-        return tag == null || tag.isEmpty();
+    public static boolean isEmpty(DataPayload tag) {
+        return Payloads.isEmpty(tag);
     }
 
-    public static NBTTagCompound copyTag(NBTTagCompound tag) {
-        return tag == null ? new NBTTagCompound() : tag.copy();
+    public static DataPayload copyTag(DataPayload tag) {
+        return Payloads.copyOf(tag);
     }
 
     private static boolean equalsNullable(String a, String b) {
@@ -206,9 +185,9 @@ public final class RenderDataRefs {
         public final int color;
         public final float size;
         public final String rendererType;
-        public final NBTTagCompound customData;
+        public final DataPayload customData;
 
-        public BulletRenderData(String texture, int color, float size, String rendererType, NBTTagCompound customData) {
+        public BulletRenderData(String texture, int color, float size, String rendererType, DataPayload customData) {
             this.texture = texture;
             this.color = color;
             this.size = size;
@@ -221,9 +200,9 @@ public final class RenderDataRefs {
         public final float thickness;
         public final int color;
         public final String rendererType;
-        public final NBTTagCompound customData;
+        public final DataPayload customData;
 
-        public LaserRenderData(float thickness, int color, String rendererType, NBTTagCompound customData) {
+        public LaserRenderData(float thickness, int color, String rendererType, DataPayload customData) {
             this.thickness = thickness;
             this.color = color;
             this.rendererType = rendererType;

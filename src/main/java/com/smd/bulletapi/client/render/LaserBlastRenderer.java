@@ -1,12 +1,12 @@
 package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.client.ClientLaser;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -57,7 +57,7 @@ public class LaserBlastRenderer implements ILaserRenderer {
             }
             dir = dir.normalize();
 
-            NBTTagCompound data = laser.getCustomData();
+            DataPayload data = laser.getCustomData();
             float alpha = data != null && data.hasKey("alpha") ? data.getFloat("alpha") : 0.85f;
             float segmentLen = data != null && data.hasKey("segment_len") ? data.getFloat("segment_len") : 1.0f;
             float coreScale = data != null && data.hasKey("core_scale") ? data.getFloat("core_scale") : 0.55f;

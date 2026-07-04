@@ -1,11 +1,11 @@
 package com.smd.bulletapi.common.summon.blueprint.impl;
 
 import com.smd.bulletapi.api.summon.AbstractOrbitingSummonBlueprint;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.ShootLaserPattern;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.nbt.NBTTagCompound;
 
 public class LaserEyeBlueprint extends AbstractOrbitingSummonBlueprint {
     public LaserEyeBlueprint() {
@@ -14,7 +14,7 @@ public class LaserEyeBlueprint extends AbstractOrbitingSummonBlueprint {
 
     @Override
     protected void configure(SummonDefinition.Builder builder) {
-        NBTTagCompound laserEyeData = new NBTTagCompound();
+        DataPayload laserEyeData = new DataPayload();
         laserEyeData.setFloat("scale", 0.42f);
         laserEyeData.setInteger("tint", 0xA8F2FF);
         laserEyeData.setString("model", "minecraft:beacon");

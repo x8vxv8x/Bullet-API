@@ -1,7 +1,7 @@
 package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -12,14 +12,14 @@ import java.util.function.Function;
 @SideOnly(Side.CLIENT)
 @PublicApi
 public class LaserRendererRegistry {
-    private static final Map<String, Function<NBTTagCompound, ILaserRenderer>> REGISTRY = new HashMap<>();
+    private static final Map<String, Function<DataPayload, ILaserRenderer>> REGISTRY = new HashMap<>();
 
-    public static void register(String type, Function<NBTTagCompound, ILaserRenderer> factory) {
+    public static void register(String type, Function<DataPayload, ILaserRenderer> factory) {
         REGISTRY.put(type, factory);
     }
 
-    public static ILaserRenderer create(String type, NBTTagCompound data) {
-        Function<NBTTagCompound, ILaserRenderer> factory = REGISTRY.get(type);
+    public static ILaserRenderer create(String type, DataPayload data) {
+        Function<DataPayload, ILaserRenderer> factory = REGISTRY.get(type);
         return factory != null ? factory.apply(data) : null;
     }
 

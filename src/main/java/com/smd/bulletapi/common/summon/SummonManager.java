@@ -5,6 +5,7 @@ import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.snapshot.SummonSnapshot;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
 import com.smd.bulletapi.common.runtime.summon.SummonOwnershipIndex;
 import com.smd.bulletapi.common.runtime.summon.SummonSnapshotFactory;
@@ -22,7 +23,6 @@ import com.smd.bulletapi.spi.combat.CombatRelation;
 import com.smd.bulletapi.spi.combat.CombatRelationResolverRegistry;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
@@ -37,7 +37,6 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -61,6 +60,7 @@ public class SummonManager {
     private final SummonSlotManager slotManager = new SummonSlotManager();
     private final List<SummonBullet> tickSummonsScratch = new ArrayList<>();
     private final List<Integer> deadSummonIdsScratch = new ArrayList<>();
+    private final Set<UUID> reconciledOwnersScratch = new java.util.HashSet<>();
 
     private SummonManager() {}
 
@@ -387,7 +387,7 @@ public class SummonManager {
         tickSummonsScratch.clear();
         tickSummonsScratch.addAll(summonMap.values());
         long worldTick = event.world.getTotalWorldTime();
-        Set<UUID> reconciledOwners = new HashSet<>();
+        reconciledOwnersScratch.clear();
         for (SummonBullet summon : tickSummonsScratch) {
             if (summon.isDead()) {
                 continue;
@@ -402,7 +402,7 @@ public class SummonManager {
                 continue;
             }
 
-            if (owner instanceof EntityPlayer && reconciledOwners.add(owner.getUniqueID())) {
+            if (owner instanceof EntityPlayer && reconciledOwnersScratch.add(owner.getUniqueID())) {
                 reconcileOwnerSummons((EntityPlayer) owner);
             }
             if (summon.isDead() || !summonStore.isCurrent(event.world, summon.getId(), summon)) {
@@ -459,6 +459,7 @@ public class SummonManager {
         }
         tickSummonsScratch.clear();
         deadSummonIdsScratch.clear();
+        reconciledOwnersScratch.clear();
     }
 
     @SubscribeEvent
@@ -627,7 +628,10 @@ public class SummonManager {
             return false;
         }
         double leashRange = summon.getDefinition().getLeashRange();
-        return summon.getPosition().squareDistanceTo(owner.getPositionVector()) > leashRange * leashRange;
+        double dx = summon.getPosX() - owner.posX;
+        double dy = summon.getPosY() - owner.posY;
+        double dz = summon.getPosZ() - owner.posZ;
+        return dx * dx + dy * dy + dz * dz > leashRange * leashRange;
     }
 
     private void updateOwnerCommandTarget(UUID ownerId, World world, EntityLivingBase target, long worldTick, Random random) {
@@ -788,20 +792,21 @@ public class SummonManager {
     }
 
     private int getSnapshotFlags(SummonBullet summon, long worldTick) {
-        Vec3d lastPos = summon.getLastSyncedPosition();
-        Vec3d lastVel = summon.getLastSyncedVelocity();
-        Vec3d pos = summon.getPosition();
-        Vec3d vel = summon.getVelocity();
-
-        if (lastPos == null || lastVel == null) {
+        if (!summon.hasSyncBaseline()) {
             return SPacketSummon.FLAG_POSITION | SPacketSummon.FLAG_VELOCITY | SPacketSummon.FLAG_LIFE;
         }
 
         int flags = 0;
-        if (pos.squareDistanceTo(lastPos) >= SNAPSHOT_POS_EPS_SQ) {
+        double posDx = summon.getPosX() - summon.getLastSyncedPositionX();
+        double posDy = summon.getPosY() - summon.getLastSyncedPositionY();
+        double posDz = summon.getPosZ() - summon.getLastSyncedPositionZ();
+        if (posDx * posDx + posDy * posDy + posDz * posDz >= SNAPSHOT_POS_EPS_SQ) {
             flags |= SPacketSummon.FLAG_POSITION;
         }
-        if (vel.squareDistanceTo(lastVel) >= SNAPSHOT_VEL_EPS_SQ) {
+        double velDx = summon.getVelX() - summon.getLastSyncedVelocityX();
+        double velDy = summon.getVelY() - summon.getLastSyncedVelocityY();
+        double velDz = summon.getVelZ() - summon.getLastSyncedVelocityZ();
+        if (velDx * velDx + velDy * velDy + velDz * velDz >= SNAPSHOT_VEL_EPS_SQ) {
             flags |= SPacketSummon.FLAG_VELOCITY;
         }
 
@@ -847,20 +852,20 @@ public class SummonManager {
         syncService.sendVisual(world, summon, flags);
     }
 
-    private void updateSummonRuntime(World world, int id, Consumer<NBTTagCompound> mutation) {
+    private void updateSummonRuntime(World world, int id, Consumer<DataPayload> mutation) {
         SummonBullet summon = getLiveSummon(world, id);
         if (summon == null || mutation == null) {
             return;
         }
 
-        NBTTagCompound root = summon.getCustomData();
+        DataPayload root = summon.getCustomData();
         if (root == null) {
-            root = new NBTTagCompound();
+            root = new DataPayload();
         }
 
-        NBTTagCompound runtime = root.hasKey(SummonContext.RUNTIME_ROOT_KEY)
+        DataPayload runtime = root.hasKey(SummonContext.RUNTIME_ROOT_KEY)
                 ? root.getCompoundTag(SummonContext.RUNTIME_ROOT_KEY)
-                : new NBTTagCompound();
+                : new DataPayload();
         mutation.accept(runtime);
         if (runtime.isEmpty()) {
             root.removeTag(SummonContext.RUNTIME_ROOT_KEY);

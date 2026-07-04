@@ -2,9 +2,9 @@ package com.smd.bulletapi.api.runtime;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.AttackSourceInfo;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 
 @PublicApi
@@ -27,7 +27,7 @@ public interface ILaserActor {
     int getEventIntervalTicks();
     int getColor();
     String getRendererType();
-    NBTTagCompound getCustomData();
+    DataPayload getCustomData();
     EntityLivingBase getShooter();
     ItemStack getShooterHeldItem();
     AttackSourceInfo getAttackSourceInfo();

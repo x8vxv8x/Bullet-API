@@ -4,12 +4,14 @@ import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.runtime.ILaserActor;
 import com.smd.bulletapi.common.AttackSourceInfo;
 import com.smd.bulletapi.common.LaserCollisionContext;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.runtime.RuntimeObject;
+import com.smd.bulletapi.common.runtime.state.ActorSourceState;
+import com.smd.bulletapi.common.runtime.state.LaserVisualState;
 import com.smd.bulletapi.spi.laser.ILaserCollisionFilter;
 import com.smd.bulletapi.spi.laser.ILaserHitBehavior;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -34,19 +36,16 @@ public class Laser implements ILaserActor, RuntimeObject {
     private final Vec3d startOffset;
     private final Vec3d startOffsetLocal;
     private final int eventIntervalTicks;
-    private final int color;
-    private final String rendererType;
-    private NBTTagCompound customData;
+    private final LaserVisualState visual;
     private final ILaserHitBehavior hitBehavior;
     private final ILaserCollisionFilter collisionFilter;
-    private final EntityLivingBase shooter;
-    private final ItemStack shooterHeldItem;
-    private final AttackSourceInfo attackSourceInfo;
+    private final ActorSourceState source;
     private final String renderPresetId;
     private final Map<Integer, Long> lastHitTick = new HashMap<>();
     private Vec3d syncBaselineStart;
     private Vec3d syncBaselineDirection;
     private double syncBaselineLength;
+
     public Laser(int id, Vec3d start, Vec3d direction, double maxLength, float thickness,
                  float damage, int life, boolean penetrate,
                  boolean followShooter, boolean onlyPlayer, boolean blockStops,
@@ -54,7 +53,7 @@ public class Laser implements ILaserActor, RuntimeObject {
                  Vec3d startOffsetLocal,
                  int eventIntervalTicks,
                  ILaserHitBehavior hitBehavior,
-                 int color, String rendererType, NBTTagCompound customData,
+                 int color, String rendererType, DataPayload customData,
                  ILaserCollisionFilter collisionFilter,
                  EntityLivingBase shooter, ItemStack shooterHeldItem,
                  AttackSourceInfo attackSourceInfo, String renderPresetId) {
@@ -73,22 +72,18 @@ public class Laser implements ILaserActor, RuntimeObject {
         this.startOffset = startOffset == null ? new Vec3d(0, 0, 0) : startOffset;
         this.startOffsetLocal = startOffsetLocal == null ? new Vec3d(0, 0, 0) : startOffsetLocal;
         this.eventIntervalTicks = Math.max(0, eventIntervalTicks);
-        this.color = color;
-        this.rendererType = rendererType;
-        this.customData = customData == null ? new NBTTagCompound() : customData;
+        this.visual = new LaserVisualState(thickness, color, rendererType, customData);
         this.hitBehavior = hitBehavior;
         this.collisionFilter = collisionFilter;
-        this.shooter = shooter;
-        this.shooterHeldItem = shooterHeldItem == null ? null : shooterHeldItem.copy();
-        this.attackSourceInfo = attackSourceInfo == null ? AttackSourceInfo.fromTag(this.customData) : attackSourceInfo;
+        this.source = new ActorSourceState(onlyPlayer, shooter, shooterHeldItem, attackSourceInfo);
         this.renderPresetId = renderPresetId;
-        this.attackSourceInfo.writeToTag(this.customData);
     }
 
     public void update(World world) {
         if (dead) {
             return;
         }
+        EntityLivingBase shooter = source.getShooter();
         if (shooter != null && shooter.isDead) {
             dead = true;
             return;
@@ -139,16 +134,22 @@ public class Laser implements ILaserActor, RuntimeObject {
 
     @Override
     public int getId() { return id; }
+
     @Override
     public Vec3d getStart() { return start; }
+
     public Vec3d getSyncBaselineStart() { return syncBaselineStart; }
+
     @Override
     public void setStart(Vec3d start) {
         this.start = start == null ? new Vec3d(0, 0, 0) : start;
     }
+
     @Override
     public Vec3d getDirection() { return direction; }
+
     public Vec3d getSyncBaselineDirection() { return syncBaselineDirection; }
+
     @Override
     public void setDirection(Vec3d direction) {
         if (direction == null || direction.lengthSquared() < 1.0E-6) {
@@ -157,50 +158,76 @@ public class Laser implements ILaserActor, RuntimeObject {
         }
         this.direction = direction.normalize();
     }
+
     @Override
     public double getMaxLength() { return maxLength; }
+
     @Override
     public double getCurrentLength() { return currentLength; }
+
     public double getSyncBaselineLength() { return syncBaselineLength; }
+
     @Override
     public void setCurrentLength(double length) { this.currentLength = length; }
+
     @Override
     public float getThickness() { return thickness; }
+
     @Override
     public float getDamage() { return damage; }
+
     @Override
     public boolean isDead() { return dead; }
+
     @Override
     public boolean isPenetrate() { return penetrate; }
+
     @Override
     public boolean isFollowShooter() { return followShooter; }
+
     @Override
     public boolean isOnlyPlayer() { return onlyPlayer; }
+
     @Override
     public boolean isBlockStops() { return blockStops; }
+
     public Vec3d getStartOffset() { return startOffset; }
+
     public Vec3d getStartOffsetLocal() { return startOffsetLocal; }
+
     @Override
     public int getEventIntervalTicks() { return eventIntervalTicks; }
+
     @Override
-    public int getColor() { return color; }
+    public int getColor() { return visual.getColor(); }
+
     @Override
-    public String getRendererType() { return rendererType; }
+    public String getRendererType() { return visual.getRendererType(); }
+
     @Override
-    public NBTTagCompound getCustomData() { return customData; }
+    public DataPayload getCustomData() { return visual.getCustomData(); }
+
     public ILaserHitBehavior getHitBehavior() { return hitBehavior; }
+
     public ILaserCollisionFilter getCollisionFilter() { return collisionFilter; }
+
     @Override
-    public EntityLivingBase getShooter() { return shooter; }
+    public EntityLivingBase getShooter() { return source.getShooter(); }
+
     @Override
-    public ItemStack getShooterHeldItem() { return shooterHeldItem; }
+    public ItemStack getShooterHeldItem() { return source.getShooterHeldItem(); }
+
     @Override
-    public AttackSourceInfo getAttackSourceInfo() { return attackSourceInfo; }
+    public AttackSourceInfo getAttackSourceInfo() { return source.getAttackSourceInfo(); }
+
     public String getRenderPresetId() { return renderPresetId; }
+
     @Override
     public void markDead() { this.dead = true; }
+
     @Override
     public int getLife() { return life; }
+
     public void setLife(int life) { this.life = life; }
 
     private static Vec3d toLocalOffset(Vec3d forward, Vec3d local) {

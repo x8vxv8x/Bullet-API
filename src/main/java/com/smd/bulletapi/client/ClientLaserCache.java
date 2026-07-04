@@ -1,8 +1,8 @@
 package com.smd.bulletapi.client;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -28,7 +28,7 @@ public class ClientLaserCache {
 
     public void spawnLaser(int id, long tick, Vec3d start, Vec3d direction, double length,
                            float thickness, int color, String rendererType,
-                           NBTTagCompound customData) {
+                           DataPayload customData) {
         ClientLaser laser = new ClientLaser(id, tick, start, direction, length, thickness, color, rendererType, customData);
         laser.setRenderer(ClientRendererResolvers.createLaserRenderer(rendererType, customData));
         lasers.put(id, laser);

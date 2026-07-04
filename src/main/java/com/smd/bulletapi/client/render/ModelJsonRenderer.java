@@ -3,7 +3,7 @@ package com.smd.bulletapi.client.render;
 import com.smd.bulletapi.client.ClientBullet;
 import com.smd.bulletapi.common.RenderStateData;
 import net.minecraft.client.renderer.block.model.IBakedModel;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -15,7 +15,7 @@ public class ModelJsonRenderer extends AbstractModelRenderer {
 
     @Override
     protected IBakedModel resolveModel(ClientBullet bullet) {
-        NBTTagCompound data = bullet.getCustomData();
+        DataPayload data = bullet.getCustomData();
         String renderState = RenderStateData.getRenderState(data);
         String modelKey = RenderStateData.scopedKey("model", renderState);
         String variantKey = RenderStateData.scopedKey("variant", renderState);

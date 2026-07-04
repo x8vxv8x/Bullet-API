@@ -25,8 +25,12 @@ public final class SummonSyncService {
                 SPacketSummon.createSnapshot(
                         summon.getId(),
                         flags,
-                        (flags & SPacketSummon.FLAG_POSITION) != 0 ? summon.getPosition() : null,
-                        (flags & SPacketSummon.FLAG_VELOCITY) != 0 ? summon.getVelocity() : null,
+                        summon.getPosX(),
+                        summon.getPosY(),
+                        summon.getPosZ(),
+                        summon.getVelX(),
+                        summon.getVelY(),
+                        summon.getVelZ(),
                         (flags & SPacketSummon.FLAG_LIFE) != 0 ? summon.getLife() : null
                 ),
                 world.provider.getDimension()

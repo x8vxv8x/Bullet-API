@@ -3,11 +3,10 @@ package com.smd.bulletapi.network;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientDanmakuCache;
 import com.smd.bulletapi.common.RenderDataRefs;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.server.Bullet;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -36,7 +35,7 @@ public class SPacketDanmaku implements IMessage {
     private int color;               // 新增
     private float size;               // 新增
     private String rendererType;       // 新增
-    private NBTTagCompound customData;
+    private DataPayload customData;
     private boolean usePresetRef;
     private String presetId;
     private int flags;
@@ -49,10 +48,8 @@ public class SPacketDanmaku implements IMessage {
 
     public static SPacketDanmaku createSpawn(Bullet bullet) {
         SPacketDanmaku p = new SPacketDanmaku(Operation.SPAWN, bullet.getId());
-        Vec3d pos = bullet.getPosition();
-        Vec3d vel = bullet.getVelocity();
-        p.x = pos.x; p.y = pos.y; p.z = pos.z;
-        p.vx = vel.x; p.vy = vel.y; p.vz = vel.z;
+        p.x = bullet.getPosX(); p.y = bullet.getPosY(); p.z = bullet.getPosZ();
+        p.vx = bullet.getVelX(); p.vy = bullet.getVelY(); p.vz = bullet.getVelZ();
         p.life = bullet.getLife();
         p.damage = bullet.getDamage();
 
@@ -60,7 +57,7 @@ public class SPacketDanmaku implements IMessage {
         RenderDataRefs.BulletRenderData actual = RenderDataRefs.bulletFromRuntime(bullet);
         RenderDataRefs.BulletRenderData base = RenderDataRefs.bulletFromPreset(renderPresetId);
         if (renderPresetId != null && base != null) {
-            NBTTagCompound customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
+            DataPayload customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
             p.usePresetRef = true;
             p.presetId = renderPresetId;
             p.flags = RenderDataRefs.bulletDiffFlags(actual, base, customDataDiff);
@@ -89,14 +86,17 @@ public class SPacketDanmaku implements IMessage {
         return p;
     }
 
-    public static SPacketDanmaku createUpdate(int id, int flags, Vec3d position, Vec3d velocity, Integer life) {
+    public static SPacketDanmaku createUpdate(int id, int flags,
+                                              double x, double y, double z,
+                                              double vx, double vy, double vz,
+                                              Integer life) {
         SPacketDanmaku p = new SPacketDanmaku(Operation.UPDATE, id);
         p.flags = flags;
-        if ((flags & FLAG_POSITION) != 0 && position != null) {
-            p.x = position.x; p.y = position.y; p.z = position.z;
+        if ((flags & FLAG_POSITION) != 0) {
+            p.x = x; p.y = y; p.z = z;
         }
-        if ((flags & FLAG_VELOCITY) != 0 && velocity != null) {
-            p.vx = velocity.x; p.vy = velocity.y; p.vz = velocity.z;
+        if ((flags & FLAG_VELOCITY) != 0) {
+            p.vx = vx; p.vy = vy; p.vz = vz;
         }
         if ((flags & FLAG_LIFE) != 0 && life != null) {
             p.life = life;
@@ -135,14 +135,14 @@ public class SPacketDanmaku implements IMessage {
                         rendererType = ByteBufUtils.readUTF8String(buf);
                     }
                     if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-                        customData = ByteBufUtils.readTag(buf);
+                        customData = DataPayload.readFrom(buf);
                     }
                 } else {
                     texture = ByteBufUtils.readUTF8String(buf);
                     color = buf.readInt();
                     size = buf.readFloat();
                     rendererType = ByteBufUtils.readUTF8String(buf);
-                    customData = ByteBufUtils.readTag(buf);
+                    customData = DataPayload.readFrom(buf);
                 }
                 break;
             case UPDATE:
@@ -189,14 +189,14 @@ public class SPacketDanmaku implements IMessage {
                         ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
                     }
                     if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-                        ByteBufUtils.writeTag(buf, customData);
+                        (customData == null ? new DataPayload() : customData).writeTo(buf);
                     }
                 } else {
                     ByteBufUtils.writeUTF8String(buf, texture == null ? "" : texture);
                     buf.writeInt(color);
                     buf.writeFloat(size);
                     ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
-                    ByteBufUtils.writeTag(buf, customData);
+                    (customData == null ? new DataPayload() : customData).writeTo(buf);
                 }
                 break;
             case UPDATE:
@@ -231,7 +231,7 @@ public class SPacketDanmaku implements IMessage {
                         int colorValue = message.color;
                         float sizeValue = message.size;
                         String rendererTypeValue = message.rendererType;
-                        NBTTagCompound customDataValue = message.customData;
+                        DataPayload customDataValue = message.customData;
                         if (message.usePresetRef) {
                             RenderDataRefs.BulletRenderData base = RenderDataRefs.bulletFromPreset(message.presetId);
                             if (base != null) {
@@ -258,8 +258,12 @@ public class SPacketDanmaku implements IMessage {
                         }
                         cache.spawnBullet(
                                 message.id,
-                                new Vec3d(message.x, message.y, message.z),
-                                new Vec3d(message.vx, message.vy, message.vz),
+                                message.x,
+                                message.y,
+                                message.z,
+                                message.vx,
+                                message.vy,
+                                message.vz,
                                 message.life,
                                 message.damage,
                                 tex,
@@ -272,8 +276,13 @@ public class SPacketDanmaku implements IMessage {
                     case UPDATE:
                         cache.updateBullet(
                                 message.id,
-                                (message.flags & FLAG_POSITION) != 0 ? new Vec3d(message.x, message.y, message.z) : null,
-                                (message.flags & FLAG_VELOCITY) != 0 ? new Vec3d(message.vx, message.vy, message.vz) : null,
+                                message.flags,
+                                message.x,
+                                message.y,
+                                message.z,
+                                message.vx,
+                                message.vy,
+                                message.vz,
                                 (message.flags & FLAG_LIFE) != 0 ? message.life : null
                         );
                         break;

@@ -3,11 +3,10 @@ package com.smd.bulletapi.network;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.client.ClientSummonCache;
 import com.smd.bulletapi.common.RenderDataRefs;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.server.summon.SummonBullet;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -35,7 +34,7 @@ public class SPacketSummon implements IMessage {
     private int color;
     private float size;
     private String rendererType;
-    private NBTTagCompound customData;
+    private DataPayload customData;
     private boolean useDefinitionRef;
     private String definitionId;
     private int flags;
@@ -49,14 +48,12 @@ public class SPacketSummon implements IMessage {
 
     public static SPacketSummon createSpawn(SummonBullet summon) {
         SPacketSummon packet = new SPacketSummon(Operation.SPAWN, summon.getId());
-        Vec3d pos = summon.getPosition();
-        Vec3d vel = summon.getVelocity();
-        packet.x = pos.x;
-        packet.y = pos.y;
-        packet.z = pos.z;
-        packet.vx = vel.x;
-        packet.vy = vel.y;
-        packet.vz = vel.z;
+        packet.x = summon.getPosX();
+        packet.y = summon.getPosY();
+        packet.z = summon.getPosZ();
+        packet.vx = summon.getVelX();
+        packet.vy = summon.getVelY();
+        packet.vz = summon.getVelZ();
         packet.life = summon.getLife();
         packet.damage = summon.getDamage();
 
@@ -64,7 +61,7 @@ public class SPacketSummon implements IMessage {
         RenderDataRefs.BulletRenderData actual = RenderDataRefs.summonFromRuntime(summon);
         RenderDataRefs.BulletRenderData base = RenderDataRefs.summonFromDefinition(refDefinitionId);
         if (refDefinitionId != null && base != null) {
-            NBTTagCompound customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
+            DataPayload customDataDiff = RenderDataRefs.diff(actual.customData, base.customData);
             packet.useDefinitionRef = true;
             packet.definitionId = refDefinitionId;
             packet.flags = RenderDataRefs.bulletDiffFlags(actual, base, customDataDiff);
@@ -93,18 +90,21 @@ public class SPacketSummon implements IMessage {
         return packet;
     }
 
-    public static SPacketSummon createSnapshot(int id, int flags, Vec3d pos, Vec3d vel, Integer life) {
+    public static SPacketSummon createSnapshot(int id, int flags,
+                                               double x, double y, double z,
+                                               double vx, double vy, double vz,
+                                               Integer life) {
         SPacketSummon packet = new SPacketSummon(Operation.SNAPSHOT, id);
         packet.flags = flags;
-        if ((flags & FLAG_POSITION) != 0 && pos != null) {
-            packet.x = pos.x;
-            packet.y = pos.y;
-            packet.z = pos.z;
+        if ((flags & FLAG_POSITION) != 0) {
+            packet.x = x;
+            packet.y = y;
+            packet.z = z;
         }
-        if ((flags & FLAG_VELOCITY) != 0 && vel != null) {
-            packet.vx = vel.x;
-            packet.vy = vel.y;
-            packet.vz = vel.z;
+        if ((flags & FLAG_VELOCITY) != 0) {
+            packet.vx = vx;
+            packet.vy = vy;
+            packet.vz = vz;
         }
         if ((flags & FLAG_LIFE) != 0 && life != null) {
             packet.life = life;
@@ -147,14 +147,14 @@ public class SPacketSummon implements IMessage {
                         rendererType = ByteBufUtils.readUTF8String(buf);
                     }
                     if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-                        customData = ByteBufUtils.readTag(buf);
+                        customData = DataPayload.readFrom(buf);
                     }
                 } else {
                     texture = ByteBufUtils.readUTF8String(buf);
                     color = buf.readInt();
                     size = buf.readFloat();
                     rendererType = ByteBufUtils.readUTF8String(buf);
-                    customData = ByteBufUtils.readTag(buf);
+                    customData = DataPayload.readFrom(buf);
                 }
                 break;
             case SNAPSHOT:
@@ -209,14 +209,14 @@ public class SPacketSummon implements IMessage {
                         ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
                     }
                     if ((flags & RenderDataRefs.FLAG_CUSTOM_DATA) != 0) {
-                        ByteBufUtils.writeTag(buf, customData);
+                        (customData == null ? new DataPayload() : customData).writeTo(buf);
                     }
                 } else {
                     ByteBufUtils.writeUTF8String(buf, texture == null ? "" : texture);
                     buf.writeInt(color);
                     buf.writeFloat(size);
                     ByteBufUtils.writeUTF8String(buf, rendererType == null ? "" : rendererType);
-                    ByteBufUtils.writeTag(buf, customData);
+                    (customData == null ? new DataPayload() : customData).writeTo(buf);
                 }
                 break;
             case SNAPSHOT:
@@ -255,7 +255,7 @@ public class SPacketSummon implements IMessage {
                         int colorValue = message.color;
                         float sizeValue = message.size;
                         String rendererTypeValue = message.rendererType;
-                        NBTTagCompound customDataValue = message.customData;
+                        DataPayload customDataValue = message.customData;
                         if (message.useDefinitionRef) {
                             RenderDataRefs.BulletRenderData base = RenderDataRefs.summonFromDefinition(message.definitionId);
                             if (base != null) {
@@ -282,8 +282,12 @@ public class SPacketSummon implements IMessage {
                         }
                         cache.spawnSummon(
                                 message.id,
-                                new Vec3d(message.x, message.y, message.z),
-                                new Vec3d(message.vx, message.vy, message.vz),
+                                message.x,
+                                message.y,
+                                message.z,
+                                message.vx,
+                                message.vy,
+                                message.vz,
                                 message.life,
                                 message.damage,
                                 textureLocation,
@@ -296,9 +300,14 @@ public class SPacketSummon implements IMessage {
                     case SNAPSHOT:
                         cache.updateSummon(
                                 message.id,
-                                (message.flags & FLAG_POSITION) != 0 ? new Vec3d(message.x, message.y, message.z) : null,
-                                (message.flags & FLAG_VELOCITY) != 0 ? new Vec3d(message.vx, message.vy, message.vz) : null,
-                                (message.flags & FLAG_LIFE) != 0 ? Integer.valueOf(message.life) : null
+                                message.flags,
+                                message.x,
+                                message.y,
+                                message.z,
+                                message.vx,
+                                message.vy,
+                                message.vz,
+                                (message.flags & FLAG_LIFE) != 0 ? message.life : null
                         );
                         break;
                     case REMOVE:

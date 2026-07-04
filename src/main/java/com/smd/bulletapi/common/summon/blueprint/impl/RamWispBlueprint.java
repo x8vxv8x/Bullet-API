@@ -2,10 +2,10 @@ package com.smd.bulletapi.common.summon.blueprint.impl;
 
 import com.smd.bulletapi.common.collision.SphereShape;
 import com.smd.bulletapi.api.summon.AbstractContactSummonBlueprint;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonPresetKeys;
 import com.smd.bulletapi.common.summon.behavior.impl.RamStrikeMoveController;
-import net.minecraft.nbt.NBTTagCompound;
 
 public class RamWispBlueprint extends AbstractContactSummonBlueprint {
     public RamWispBlueprint() {
@@ -15,7 +15,7 @@ public class RamWispBlueprint extends AbstractContactSummonBlueprint {
     @Override
     protected void configure(SummonDefinition.Builder builder) {
         RamStrikeMoveController controller = new RamStrikeMoveController();
-        NBTTagCompound ramWispData = new NBTTagCompound();
+        DataPayload ramWispData = new DataPayload();
         ramWispData.setFloat("scale", 0.72f);
 
         builder.life(6000)

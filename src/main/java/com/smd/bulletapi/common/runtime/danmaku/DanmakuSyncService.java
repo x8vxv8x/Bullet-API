@@ -27,8 +27,12 @@ public final class DanmakuSyncService {
                 SPacketDanmaku.createUpdate(
                         bullet.getId(),
                         flags,
-                        (flags & SPacketDanmaku.FLAG_POSITION) != 0 ? bullet.getPosition() : null,
-                        (flags & SPacketDanmaku.FLAG_VELOCITY) != 0 ? bullet.getVelocity() : null,
+                        bullet.getPosX(),
+                        bullet.getPosY(),
+                        bullet.getPosZ(),
+                        bullet.getVelX(),
+                        bullet.getVelY(),
+                        bullet.getVelZ(),
                         (flags & SPacketDanmaku.FLAG_LIFE) != 0 ? bullet.getLife() : null
                 ),
                 world.provider.getDimension()

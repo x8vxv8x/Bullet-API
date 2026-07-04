@@ -2,11 +2,11 @@ package com.smd.bulletapi.common.summon;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
 import com.smd.bulletapi.common.collision.ICollisionShape;
+import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.summon.behavior.IFormationStrategy;
 import com.smd.bulletapi.common.summon.behavior.ISummonAttackPattern;
 import com.smd.bulletapi.common.summon.behavior.ISummonMoveController;
 import com.smd.bulletapi.common.summon.behavior.ISummonTargetSelector;
-import net.minecraft.nbt.NBTTagCompound;
 
 @PublicApi
 public class SummonDefinition {
@@ -18,7 +18,7 @@ public class SummonDefinition {
     private int color = 0xFFFFFF;
     private float size = 0.75f;
     private String rendererType = "billboard";
-    private NBTTagCompound customData = new NBTTagCompound();
+    private DataPayload customData = new DataPayload();
     private ICollisionShape collisionShape;
     private double followRange = 24.0;
     private double attackRange = 16.0;
@@ -57,7 +57,7 @@ public class SummonDefinition {
         copy.color = color;
         copy.size = size;
         copy.rendererType = rendererType;
-        copy.customData = customData == null ? new NBTTagCompound() : customData.copy();
+        copy.customData = customData == null ? new DataPayload() : customData.copy();
         copy.collisionShape = collisionShape;
         copy.followRange = followRange;
         copy.attackRange = attackRange;
@@ -92,9 +92,9 @@ public class SummonDefinition {
     public SummonDefinition size(float size) { this.size = size; return this; }
     public String getRendererType() { return rendererType; }
     public SummonDefinition rendererType(String rendererType) { this.rendererType = rendererType; return this; }
-    public NBTTagCompound getCustomData() { return customData; }
-    public SummonDefinition customData(NBTTagCompound customData) {
-        this.customData = customData == null ? new NBTTagCompound() : customData;
+    public DataPayload getCustomData() { return customData; }
+    public SummonDefinition customData(DataPayload customData) {
+        this.customData = customData == null ? new DataPayload() : customData;
         return this;
     }
     public ICollisionShape getCollisionShape() { return collisionShape; }
@@ -210,8 +210,8 @@ public class SummonDefinition {
             return this;
         }
 
-        public Builder customData(NBTTagCompound customData) {
-            definition.customData(customData == null ? new NBTTagCompound() : customData.copy());
+        public Builder customData(DataPayload customData) {
+            definition.customData(customData == null ? new DataPayload() : customData.copy());
             return this;
         }
 

@@ -1,7 +1,7 @@
 package com.smd.bulletapi.client.render;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
-import net.minecraft.nbt.NBTTagCompound;
+import com.smd.bulletapi.common.data.DataPayload;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -12,14 +12,14 @@ import java.util.function.Function;
 @SideOnly(Side.CLIENT)
 @PublicApi
 public class RendererRegistry {
-    private static final Map<String, Function<NBTTagCompound, IBulletRenderer>> REGISTRY = new HashMap<>();
+    private static final Map<String, Function<DataPayload, IBulletRenderer>> REGISTRY = new HashMap<>();
 
     /**
      * 注册一个渲染器工厂
      * @param type    渲染器类型标识符（必须唯一）
      * @param factory 接收 customData 并返回 IBulletRenderer 实例的函数
      */
-    public static void register(String type, Function<NBTTagCompound, IBulletRenderer> factory) {
+    public static void register(String type, Function<DataPayload, IBulletRenderer> factory) {
         REGISTRY.put(type, factory);
     }
 
@@ -29,8 +29,8 @@ public class RendererRegistry {
      * @param data 自定义数据（可能包含纹理路径、颜色等）
      * @return 渲染器实例，若类型未注册则返回 null
      */
-    public static IBulletRenderer create(String type, NBTTagCompound data) {
-        Function<NBTTagCompound, IBulletRenderer> factory = REGISTRY.get(type);
+    public static IBulletRenderer create(String type, DataPayload data) {
+        Function<DataPayload, IBulletRenderer> factory = REGISTRY.get(type);
         return factory != null ? factory.apply(data) : null;
     }
 
