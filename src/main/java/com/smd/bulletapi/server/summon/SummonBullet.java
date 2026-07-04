@@ -2,15 +2,14 @@ package com.smd.bulletapi.server.summon;
 
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.runtime.ISummonActor;
+import com.smd.bulletapi.api.summon.SummonSpec;
+import com.smd.bulletapi.api.summon.SummonType;
 import com.smd.bulletapi.common.AttackSourceInfo;
-import com.smd.bulletapi.common.CollisionContext;
-import com.smd.bulletapi.common.collision.ICollisionShape;
 import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.runtime.RuntimeObject;
 import com.smd.bulletapi.common.runtime.state.ActorSourceState;
 import com.smd.bulletapi.common.runtime.state.MotionState3D;
 import com.smd.bulletapi.common.runtime.state.SpriteVisualState;
-import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.common.summon.SummonTargetSource;
 import net.minecraft.entity.Entity;
@@ -26,23 +25,23 @@ import java.util.UUID;
 @InternalApi
 public class SummonBullet implements ISummonActor, RuntimeObject {
     private final int id;
+    private final SummonType type;
+    private final SummonSpec spec;
     private final MotionState3D motion;
     private final SpriteVisualState visual;
     private final ActorSourceState source;
     private final UUID ownerId;
     private final int slotCost;
-    private final String definitionId;
-    private final SummonDefinition definition;
-    private final ICollisionShape collisionShape;
+    private final int formationIndex;
+    private final long spawnTick;
+    private final Map<Integer, Long> lastContactHitTick = new HashMap<>();
+    private final String typeId;
     private SummonState state = SummonState.IDLE;
     private int targetEntityId = -1;
     private SummonTargetSource targetSource = SummonTargetSource.NONE;
     private int retargetCooldown;
     private int attackCooldown;
     private int syncCooldown;
-    private final int formationIndex;
-    private final long spawnTick;
-    private final Map<Integer, Long> lastContactHitTick = new HashMap<>();
     private int activeLaserId = -1;
     private boolean releasedSlots;
     private double lastSyncedPositionX;
@@ -54,33 +53,41 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     private boolean syncBaselineInitialized;
     private long lastSyncWorldTick;
 
-    public SummonBullet(int id, Vec3d position, Vec3d velocity, SummonDefinition definition,
-                        EntityLivingBase owner, int formationIndex, long spawnTick) {
+    public SummonBullet(int id, SummonType type, EntityLivingBase owner, Vec3d position,
+                        int formationIndex, long spawnTick) {
         this.id = id;
-        this.motion = new MotionState3D(position, velocity, definition.getLife());
+        this.type = type;
+        this.spec = type.getSpec();
+        this.motion = new MotionState3D(position, new Vec3d(0, 0, 0), spec.getLife());
         this.visual = new SpriteVisualState(
-                definition.getTexture(),
-                definition.getColor(),
-                definition.getSize(),
-                definition.getRendererType(),
-                definition.getCustomData() == null ? new DataPayload() : definition.getCustomData().copy()
+                spec.getTexture(),
+                spec.getColor(),
+                spec.getSize(),
+                spec.getRendererType(),
+                spec.getCustomData()
         );
-        this.source = new ActorSourceState(false, owner, null, AttackSourceInfo.summonBody(owner.getUniqueID(), id, definition.getId()));
+        this.source = new ActorSourceState(false, owner, null, AttackSourceInfo.summonBody(owner.getUniqueID(), id, type.getId()));
         this.ownerId = owner.getUniqueID();
-        this.slotCost = definition.getSlotCost();
-        this.definitionId = definition.getId();
-        this.definition = definition;
-        this.collisionShape = definition.getCollisionShape();
+        this.slotCost = spec.getSlotCost();
         this.formationIndex = formationIndex;
         this.spawnTick = spawnTick;
+        this.typeId = type.getId();
         this.lastSyncedPositionX = position.x;
         this.lastSyncedPositionY = position.y;
         this.lastSyncedPositionZ = position.z;
-        this.lastSyncedVelocityX = velocity.x;
-        this.lastSyncedVelocityY = velocity.y;
-        this.lastSyncedVelocityZ = velocity.z;
+        this.lastSyncedVelocityX = 0.0D;
+        this.lastSyncedVelocityY = 0.0D;
+        this.lastSyncedVelocityZ = 0.0D;
         this.syncBaselineInitialized = true;
         this.lastSyncWorldTick = spawnTick;
+    }
+
+    public SummonType getType() {
+        return type;
+    }
+
+    public SummonSpec getSpec() {
+        return spec;
     }
 
     @Override
@@ -90,55 +97,39 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     public Vec3d getPosition() { return motion.getPosition(); }
 
     public double getPosX() { return motion.getPositionX(); }
-
     public double getPosY() { return motion.getPositionY(); }
-
     public double getPosZ() { return motion.getPositionZ(); }
 
     @Override
     public Vec3d getVelocity() { return motion.getVelocity(); }
 
     public double getVelX() { return motion.getVelocityX(); }
-
     public double getVelY() { return motion.getVelocityY(); }
-
     public double getVelZ() { return motion.getVelocityZ(); }
 
     @Override
-    public void setVelocity(Vec3d velocity) {
-        motion.setVelocity(velocity);
-    }
+    public void setVelocity(Vec3d velocity) { motion.setVelocity(velocity); }
 
     @Override
-    public void setVelocity(double x, double y, double z) {
-        motion.setVelocity(x, y, z);
-    }
+    public void setVelocity(double x, double y, double z) { motion.setVelocity(x, y, z); }
 
     @Override
-    public void setPosition(Vec3d position) {
-        motion.setPosition(position);
-    }
+    public void setPosition(Vec3d position) { motion.setPosition(position); }
 
     @Override
-    public void setPosition(double x, double y, double z) {
-        motion.setPosition(x, y, z);
-    }
+    public void setPosition(double x, double y, double z) { motion.setPosition(x, y, z); }
 
     @Override
-    public void setLife(int life) {
-        motion.setLife(life);
-    }
+    public void setLife(int life) { motion.setLife(life); }
 
     @Override
-    public void markDead() {
-        motion.markDead();
-    }
+    public void markDead() { motion.markDead(); }
 
     @Override
     public int getLife() { return motion.getLife(); }
 
     @Override
-    public float getDamage() { return definition.getDamage(); }
+    public float getDamage() { return spec.getDamage(); }
 
     @Override
     public boolean isDead() { return motion.isDead(); }
@@ -169,10 +160,6 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
 
     public void setRenderState(String renderState) { visual.setRenderState(renderState); }
 
-    public ICollisionShape getCollisionShape() { return collisionShape; }
-
-    public boolean hasCollision() { return collisionShape != null; }
-
     @Override
     public boolean isOnlyPlayer() { return source.isOnlyPlayer(); }
 
@@ -192,9 +179,6 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
         motion.tickLinear();
     }
 
-    public void handleHit(CollisionContext context) {
-    }
-
     @Override
     public UUID getOwnerId() { return ownerId; }
 
@@ -202,16 +186,16 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     public int getSlotCost() { return slotCost; }
 
     @Override
-    public String getDefinitionId() { return definitionId; }
+    public String getDefinitionId() { return typeId; }
 
     @Override
-    public SummonDefinition getDefinition() { return definition; }
+    public SummonSpec getSpecView() { return spec; }
 
     @Override
     public SummonState getState() { return state; }
 
     @Override
-    public void setState(SummonState state) { this.state = state; }
+    public void setState(SummonState state) { this.state = state == null ? SummonState.IDLE : state; }
 
     @Override
     public int getFormationIndex() { return formationIndex; }
@@ -243,9 +227,7 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     }
 
     @Override
-    public int getTargetEntityId() {
-        return targetEntityId;
-    }
+    public int getTargetEntityId() { return targetEntityId; }
 
     @Override
     public void setTarget(EntityLivingBase target) {
@@ -253,9 +235,7 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     }
 
     @Override
-    public SummonTargetSource getTargetSource() {
-        return targetSource;
-    }
+    public SummonTargetSource getTargetSource() { return targetSource; }
 
     public void setTarget(EntityLivingBase target, SummonTargetSource source) {
         this.targetEntityId = target == null ? -1 : target.getEntityId();
@@ -273,7 +253,7 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
 
     @Override
     public void resetRetargetCooldown() {
-        retargetCooldown = Math.max(1, definition.getRetargetIntervalTicks());
+        retargetCooldown = Math.max(1, spec.getRetargetIntervalTicks());
     }
 
     @Override
@@ -293,7 +273,7 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
 
     @Override
     public void resetSyncCooldown() {
-        syncCooldown = Math.max(1, definition.getSyncIntervalTicks());
+        syncCooldown = Math.max(1, spec.getSyncIntervalTicks());
     }
 
     @Override
@@ -314,20 +294,12 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     }
 
     public double getLastSyncedPositionX() { return lastSyncedPositionX; }
-
     public double getLastSyncedPositionY() { return lastSyncedPositionY; }
-
     public double getLastSyncedPositionZ() { return lastSyncedPositionZ; }
-
     public double getLastSyncedVelocityX() { return lastSyncedVelocityX; }
-
     public double getLastSyncedVelocityY() { return lastSyncedVelocityY; }
-
     public double getLastSyncedVelocityZ() { return lastSyncedVelocityZ; }
-
-    public long getLastSyncWorldTick() {
-        return lastSyncWorldTick;
-    }
+    public long getLastSyncWorldTick() { return lastSyncWorldTick; }
 
     public void markSynced(long worldTick) {
         this.lastSyncedPositionX = motion.getPositionX();
@@ -342,7 +314,7 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
 
     @Override
     public boolean canTriggerContact(EntityLivingBase entity, long worldTick) {
-        int interval = definition.getBodyCollisionIntervalTicks();
+        int interval = spec.getBodyCollisionIntervalTicks();
         if (entity == null) {
             return false;
         }
@@ -362,32 +334,20 @@ public class SummonBullet implements ISummonActor, RuntimeObject {
     }
 
     @Override
-    public boolean hasReleasedSlots() {
-        return releasedSlots;
-    }
+    public boolean hasReleasedSlots() { return releasedSlots; }
 
     @Override
-    public void markSlotsReleased() {
-        releasedSlots = true;
-    }
+    public void markSlotsReleased() { releasedSlots = true; }
 
     @Override
-    public int getActiveLaserId() {
-        return activeLaserId;
-    }
+    public int getActiveLaserId() { return activeLaserId; }
 
     @Override
-    public boolean hasActiveLaser() {
-        return activeLaserId >= 0;
-    }
+    public boolean hasActiveLaser() { return activeLaserId >= 0; }
 
     @Override
-    public void setActiveLaserId(int activeLaserId) {
-        this.activeLaserId = activeLaserId;
-    }
+    public void setActiveLaserId(int activeLaserId) { this.activeLaserId = activeLaserId; }
 
     @Override
-    public void clearActiveLaserId() {
-        this.activeLaserId = -1;
-    }
+    public void clearActiveLaserId() { this.activeLaserId = -1; }
 }

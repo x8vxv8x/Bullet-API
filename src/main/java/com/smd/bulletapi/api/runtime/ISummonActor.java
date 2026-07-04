@@ -1,7 +1,7 @@
 package com.smd.bulletapi.api.runtime;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
-import com.smd.bulletapi.common.summon.SummonDefinition;
+import com.smd.bulletapi.api.summon.SummonSpec;
 import com.smd.bulletapi.common.summon.SummonState;
 import com.smd.bulletapi.common.summon.SummonTargetSource;
 import net.minecraft.entity.EntityLivingBase;
@@ -14,7 +14,7 @@ public interface ISummonActor extends IBulletActor {
     UUID getOwnerId();
     int getSlotCost();
     String getDefinitionId();
-    SummonDefinition getDefinition();
+    SummonSpec getSpecView();
     SummonState getState();
     void setState(SummonState state);
     int getFormationIndex();

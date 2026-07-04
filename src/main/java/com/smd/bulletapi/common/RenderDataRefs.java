@@ -7,9 +7,10 @@ import com.smd.bulletapi.api.preset.BulletPreset;
 import com.smd.bulletapi.api.preset.BulletPresetRegistry;
 import com.smd.bulletapi.api.preset.LaserPreset;
 import com.smd.bulletapi.api.preset.LaserPresetRegistry;
+import com.smd.bulletapi.api.summon.SummonSpec;
+import com.smd.bulletapi.api.summon.SummonType;
 import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.data.Payloads;
-import com.smd.bulletapi.common.summon.SummonDefinition;
 import com.smd.bulletapi.common.summon.SummonRegistry;
 import com.smd.bulletapi.server.Bullet;
 import com.smd.bulletapi.server.Laser;
@@ -96,10 +97,11 @@ public final class RenderDataRefs {
         if (definitionId == null || !SummonRegistry.has(definitionId)) {
             return null;
         }
-        SummonDefinition definition = SummonRegistry.get(definitionId);
-        if (definition == null) {
+        SummonType type = SummonRegistry.get(definitionId);
+        if (type == null) {
             return null;
         }
+        SummonSpec definition = type.getSpec();
         return new BulletRenderData(
                 definition.getTexture(),
                 definition.getColor(),

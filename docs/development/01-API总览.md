@@ -22,7 +22,7 @@
 - `LaserApi`
   - 激光创建与句柄入口
 - `SummonApi`
-  - 召唤物创建、注册定义/蓝图、槽位操作
+  - 召唤物创建、注册类型、槽位操作
 - `Battlefield`
   - 当前世界中的弹幕、激光、召唤物查询入口
 
@@ -30,7 +30,6 @@
 
 - `BulletBuilder`
 - `LaserBuilder`
-- `SummonBuilder`
 
 常用控制对象：
 
@@ -48,10 +47,11 @@
 
 当前版本推荐按下面四层理解公开 API：
 
-### Builder
+### Builder / Spawn
 
 - 负责生成对象
-- 例如 `BulletApi.builder(world)`、`LaserApi.builder(world)`、`SummonApi.builder(world)`
+- 点弹幕 / 激光仍使用 Builder
+- 召唤物改为 `SummonApi.spawn(...)`
 
 ### Handle
 
@@ -88,12 +88,11 @@
 - `ILaserCollisionFilter`
   - 激光命中过滤规则
 
-### 召唤物行为
+### 召唤物
 
-- `ISummonTargetSelector`
-- `ISummonMoveController`
-- `ISummonAttackPattern`
-- `IFormationStrategy`
+- `SummonType`
+- `SummonSpec`
+- `AbstractSummonEntity`
 
 ## 参数载荷补充
 
@@ -112,9 +111,6 @@
   - 客户端自定义渲染器
 - `BulletPreset`
 - `LaserPreset`
-- `AbstractSummonBlueprint`
-  - 定义可复用预设和蓝图
-
 ## Event
 
 公开事件主要分三类：
@@ -132,7 +128,7 @@
 - `SummonSlotChangedEvent`
 - `BulletPresetRegisteredEvent`
 - `LaserPresetRegisteredEvent`
-- `SummonDefinitionRegisteredEvent`
+- `SummonTypeRegisteredEvent`
 
 ### 碰撞事件
 
@@ -143,7 +139,7 @@
 
 - 你要做全局联动
 - 你要观察或拦截别的附属 mod 创建出来的对象
-- 你不想把逻辑绑死在某一个 builder 或某一个蓝图上
+- 你不想把逻辑绑死在某一个 builder 或某一个 summon 类型内部
 
 ## Internal
 
@@ -185,12 +181,12 @@ LaserApi.builder(world)
 
 ### 召唤物
 
-适合持续存在、会选目标、会移动、会执行攻击模板的运行时对象。
+适合持续存在、会选目标、会移动、会执行自己行为逻辑的运行时对象。
 
 入口：
 
 ```java
-SummonApi.builder(world)
+SummonApi.spawn(world, owner, "modid:summon_id")
 ```
 
 查询：
@@ -234,11 +230,7 @@ LaserApi.builder(world)
 ### 创建召唤物
 
 ```java
-SummonApi.builder(world)
-    .owner(player)
-    .definition("bulletapi:ram_wisp")
-    .position(pos)
-    .spawn();
+SummonApi.spawn(world, player, "bulletapi:ram_wisp", pos);
 ```
 
 ### 查询世界中的对象

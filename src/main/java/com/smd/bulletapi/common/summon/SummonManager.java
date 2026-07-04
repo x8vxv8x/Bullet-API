@@ -3,9 +3,10 @@ package com.smd.bulletapi.common.summon;
 import com.smd.bulletapi.api.annotation.InternalApi;
 import com.smd.bulletapi.api.handle.SummonHandle;
 import com.smd.bulletapi.api.snapshot.SummonSnapshot;
+import com.smd.bulletapi.api.summon.AbstractSummonEntity;
+import com.smd.bulletapi.api.summon.SummonType;
 import com.smd.bulletapi.common.CollisionContext;
 import com.smd.bulletapi.common.DanmakuManager;
-import com.smd.bulletapi.common.data.DataPayload;
 import com.smd.bulletapi.common.runtime.WorldRuntimeStore;
 import com.smd.bulletapi.common.runtime.summon.SummonOwnershipIndex;
 import com.smd.bulletapi.common.runtime.summon.SummonSnapshotFactory;
@@ -36,14 +37,10 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 @InternalApi
 public class SummonManager {
@@ -55,12 +52,11 @@ public class SummonManager {
     private final SummonOwnershipIndex ownershipIndex = new SummonOwnershipIndex();
     private final SummonSnapshotFactory snapshotFactory = new SummonSnapshotFactory();
     private final SummonSyncService syncService = new SummonSyncService();
-    private final Map<UUID, OwnerCommandTarget> ownerCommandTargets = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1000000);
     private final SummonSlotManager slotManager = new SummonSlotManager();
     private final List<SummonBullet> tickSummonsScratch = new ArrayList<>();
     private final List<Integer> deadSummonIdsScratch = new ArrayList<>();
-    private final Set<UUID> reconciledOwnersScratch = new java.util.HashSet<>();
+    private final java.util.Set<UUID> reconciledOwnersScratch = new java.util.HashSet<>();
 
     private SummonManager() {}
 
@@ -80,28 +76,33 @@ public class SummonManager {
         reconcileOwnerSummons(player);
     }
 
-    public int spawnSummon(World world, EntityLivingBase owner, SummonDefinition definition) {
-        return spawnSummon(world, owner, definition, null);
+    public int spawnSummon(World world, EntityLivingBase owner, String typeId) {
+        return spawnSummon(world, owner, typeId, null);
     }
 
-    public int spawnSummon(World world, EntityLivingBase owner, SummonDefinition definition, Vec3d position) {
+    public int spawnSummon(World world, EntityLivingBase owner, String typeId, Vec3d position) {
         if (world.isRemote) {
             return -1;
         }
         if (owner == null) {
             throw new IllegalArgumentException("Owner must not be null");
         }
-
+        SummonType type = SummonRegistry.get(typeId);
+        if (type == null) {
+            throw new IllegalStateException("Unknown summon type: " + typeId);
+        }
         if (owner instanceof EntityPlayer) {
-            if (!slotManager.reserve((EntityPlayer) owner, definition.getSlotCost())) {
+            if (!slotManager.reserve((EntityPlayer) owner, type.getSpec().getSlotCost())) {
                 return -1;
             }
         }
 
         int id = nextId.getAndIncrement();
         int formationIndex = getOwnedSummonCount(owner.getUniqueID());
-        Vec3d spawnPos = position == null ? getDefaultSpawnPosition(owner, definition) : position;
-        SummonBullet summon = new SummonBullet(id, spawnPos, new Vec3d(0, 0, 0), definition, owner, formationIndex, world.getTotalWorldTime());
+        Vec3d spawnPos = position == null
+                ? owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + type.getSpec().getIdleHeight(), 0)
+                : position;
+        AbstractSummonEntity summon = type.createEntity(id, world, owner, spawnPos, formationIndex, world.getTotalWorldTime());
         summonStore.put(world, summon);
         indexSummon(world, summon);
         MinecraftForge.EVENT_BUS.post(new SummonSpawnEvent(world, createSummonSnapshot(summon)));
@@ -234,10 +235,30 @@ public class SummonManager {
 
     public void updateSummonTarget(World world, int id, EntityLivingBase target) {
         SummonBullet summon = getLiveSummon(world, id);
-        if (summon == null) {
+        if (!(summon instanceof AbstractSummonEntity)) {
             return;
         }
-        updateOwnerCommandTarget(summon.getOwnerId(), world, target, world.getTotalWorldTime(), world.rand);
+        AbstractSummonEntity entity = (AbstractSummonEntity) summon;
+        EntityLivingBase owner = entity.getOwnerEntity(world);
+        if (owner == null || owner.isDead) {
+            removeSummon(world, id, LifecycleRemoveReason.OWNER_LOST);
+            return;
+        }
+
+        int previousTargetId = entity.getTargetEntityId();
+        if (target == null) {
+            entity.clearTarget();
+        } else if (entity.acceptsExternalTarget(world, owner, target)) {
+            entity.setTarget(target, SummonTargetSource.COMMAND);
+        }
+        if (previousTargetId != entity.getTargetEntityId()) {
+            MinecraftForge.EVENT_BUS.post(new SummonTargetChangedEvent(
+                    world,
+                    new SummonHandle(world, entity.getId()),
+                    previousTargetId,
+                    entity.getTargetEntityId()
+            ));
+        }
     }
 
     public void updateSummonState(World world, int id, SummonState state) {
@@ -253,35 +274,35 @@ public class SummonManager {
                     new SummonHandle(world, summon.getId()),
                     previousState,
                     state
-                ));
+            ));
         }
     }
 
     public void retargetSummon(World world, int id) {
         SummonBullet summon = getLiveSummon(world, id);
-        if (summon == null) {
+        if (!(summon instanceof AbstractSummonEntity)) {
             return;
         }
-        EntityLivingBase owner = summon.getOwnerEntity(world);
+        AbstractSummonEntity entity = (AbstractSummonEntity) summon;
+        EntityLivingBase owner = entity.getOwnerEntity(world);
         if (owner == null || owner.isDead) {
             removeSummon(world, id, LifecycleRemoveReason.OWNER_LOST);
             return;
         }
-
-        int previousTargetId = summon.getTargetEntityId();
-        SummonContext context = createContext(world, summon, owner, world.getTotalWorldTime());
-        if (summon.getDefinition().getTargetSelector() != null) {
-            context.setAutoTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
+        int previousTargetId = entity.getTargetEntityId();
+        EntityLivingBase target = entity.selectTarget(world, owner);
+        if (target == null) {
+            entity.clearTarget();
         } else {
-            context.clearTarget();
+            entity.setTarget(target, SummonTargetSource.AUTO);
         }
-        summon.resetRetargetCooldown();
-        if (previousTargetId != summon.getTargetEntityId()) {
+        entity.resetRetargetCooldown();
+        if (previousTargetId != entity.getTargetEntityId()) {
             MinecraftForge.EVENT_BUS.post(new SummonTargetChangedEvent(
                     world,
-                    new SummonHandle(world, summon.getId()),
+                    new SummonHandle(world, entity.getId()),
                     previousTargetId,
-                    summon.getTargetEntityId()
+                    entity.getTargetEntityId()
             ));
         }
     }
@@ -293,65 +314,12 @@ public class SummonManager {
         }
         int previousTargetId = summon.getTargetEntityId();
         SummonState previousState = summon.getState();
-        summon.clearTarget();
+        if (summon instanceof AbstractSummonEntity) {
+            ((AbstractSummonEntity) summon).clearTarget();
+        }
         summon.resetRetargetCooldown();
         summon.setState(SummonState.RETURNING);
         emitStateChanges(world, summon, previousState, previousTargetId);
-    }
-
-    public void updateSummonMode(World world, int id, String mode) {
-        updateSummonRuntime(world, id, runtime -> {
-            if (mode == null || mode.trim().isEmpty()) {
-                runtime.removeTag(SummonContext.MODE_KEY);
-            } else {
-                runtime.setString(SummonContext.MODE_KEY, mode);
-            }
-        });
-    }
-
-    public void clearSummonMode(World world, int id) {
-        updateSummonMode(world, id, null);
-    }
-
-    public void updateSummonIntParam(World world, int id, String key, int value) {
-        if (key == null || key.trim().isEmpty()) {
-            return;
-        }
-        updateSummonRuntime(world, id, runtime -> runtime.setInteger(key, value));
-    }
-
-    public void updateSummonFloatParam(World world, int id, String key, float value) {
-        if (key == null || key.trim().isEmpty()) {
-            return;
-        }
-        updateSummonRuntime(world, id, runtime -> runtime.setFloat(key, value));
-    }
-
-    public void updateSummonBoolParam(World world, int id, String key, boolean value) {
-        if (key == null || key.trim().isEmpty()) {
-            return;
-        }
-        updateSummonRuntime(world, id, runtime -> runtime.setBoolean(key, value));
-    }
-
-    public void updateSummonStringParam(World world, int id, String key, String value) {
-        if (key == null || key.trim().isEmpty()) {
-            return;
-        }
-        updateSummonRuntime(world, id, runtime -> {
-            if (value == null) {
-                runtime.removeTag(key);
-            } else {
-                runtime.setString(key, value);
-            }
-        });
-    }
-
-    public void clearSummonParam(World world, int id, String key) {
-        if (key == null || key.trim().isEmpty()) {
-            return;
-        }
-        updateSummonRuntime(world, id, runtime -> runtime.removeTag(key));
     }
 
     public List<SummonBullet> getOwnedSummons(UUID ownerId) {
@@ -364,13 +332,11 @@ public class SummonManager {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerLoggedOutEvent event) {
-        ownerCommandTargets.remove(event.player.getUniqueID());
         removeOwnedSummons(event.player.getUniqueID(), LifecycleRemoveReason.PLAYER_LOGOUT);
     }
 
     @SubscribeEvent
     public void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
-        ownerCommandTargets.remove(event.player.getUniqueID());
         removeOwnedSummons(event.player.getUniqueID(), LifecycleRemoveReason.DIMENSION_CHANGE);
     }
 
@@ -388,20 +354,16 @@ public class SummonManager {
         tickSummonsScratch.addAll(summonMap.values());
         long worldTick = event.world.getTotalWorldTime();
         reconciledOwnersScratch.clear();
-        for (SummonBullet summon : tickSummonsScratch) {
-            if (summon.isDead()) {
-                continue;
-            }
-            if (!summonStore.isCurrent(event.world, summon.getId(), summon)) {
-                continue;
-            }
 
+        for (SummonBullet summon : tickSummonsScratch) {
+            if (summon.isDead() || !summonStore.isCurrent(event.world, summon.getId(), summon)) {
+                continue;
+            }
             EntityLivingBase owner = summon.getOwnerEntity(event.world);
             if (owner == null || owner.isDead) {
                 removeSummon(event.world, summon.getId(), LifecycleRemoveReason.OWNER_LOST);
                 continue;
             }
-
             if (owner instanceof EntityPlayer && reconciledOwnersScratch.add(owner.getUniqueID())) {
                 reconcileOwnerSummons((EntityPlayer) owner);
             }
@@ -413,29 +375,13 @@ public class SummonManager {
             int previousTargetId = summon.getTargetEntityId();
 
             summon.tickCooldowns();
-            boolean forcedRecovery = isOutsideLeash(owner, summon);
-            EntityLivingBase ownerCommandTarget = resolveOwnerCommandTarget(event.world, owner.getUniqueID());
-            syncOwnerCommandTarget(owner, summon, ownerCommandTarget, forcedRecovery);
-            EntityLivingBase target = resolveTrackedTarget(event.world, owner, summon, forcedRecovery);
-
-            SummonContext context = new SummonContext(this, event.world, summon, owner, summon.getDefinition(), worldTick, target);
-            if (context.getTarget() == null && summon.shouldRetarget() && summon.getDefinition().getTargetSelector() != null) {
-                context.setAutoTarget(summon.getDefinition().getTargetSelector().selectTarget(context));
-                summon.resetRetargetCooldown();
-            }
-            if (summon.getDefinition().getMoveController() != null) {
-                if (context.getTarget() == null) {
-                    summon.getDefinition().getMoveController().tickNoTargetMovement(context);
-                } else {
-                    summon.getDefinition().getMoveController().tickCombatMovement(context);
-                }
+            if (summon instanceof AbstractSummonEntity) {
+                AbstractSummonEntity entity = (AbstractSummonEntity) summon;
+                EntityLivingBase target = entity.sanitizeTarget(event.world, owner);
+                entity.tickServer(event.world, owner, target);
             }
             summon.update(event.world);
             handleSummonBodyCollision(summon, event.world, worldTick);
-            if (summon.getDefinition().getAttackPattern() != null) {
-                summon.getDefinition().getAttackPattern().tickAttack(context);
-            }
-
             emitStateChanges(event.world, summon, previousState, previousTargetId);
 
             if (summon.shouldSync()) {
@@ -476,10 +422,6 @@ public class SummonManager {
         }
     }
 
-    private Vec3d getDefaultSpawnPosition(EntityLivingBase owner, SummonDefinition definition) {
-        return owner.getPositionVector().add(0, owner.getEyeHeight() * 0.7D + definition.getIdleHeight(), 0);
-    }
-
     private void sendSpawn(World world, SummonBullet summon) {
         syncService.sendSpawn(world, summon);
     }
@@ -497,7 +439,6 @@ public class SummonManager {
                     summon.getState()
             ));
         }
-
         if (previousTargetId != summon.getTargetEntityId()) {
             MinecraftForge.EVENT_BUS.post(new SummonTargetChangedEvent(
                     world,
@@ -548,139 +489,6 @@ public class SummonManager {
         }
     }
 
-    private EntityLivingBase resolveTrackedTarget(World world, EntityLivingBase owner, SummonBullet summon, boolean forcedRecovery) {
-        if (forcedRecovery) {
-            summon.clearTarget();
-            return null;
-        }
-
-        EntityLivingBase target = summon.getTarget(world);
-        if (!isValidTrackedTarget(owner, summon, target)) {
-            summon.clearTarget();
-            return null;
-        }
-
-        if (summon.getTargetSource() == SummonTargetSource.COMMAND && !canAcceptCommandTarget(owner, summon, target)) {
-            summon.clearTarget();
-            return null;
-        }
-        return target;
-    }
-
-    private void syncOwnerCommandTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase ownerCommandTarget, boolean forcedRecovery) {
-        if (summon == null) {
-            return;
-        }
-
-        if (forcedRecovery || ownerCommandTarget == null || !canAcceptCommandTarget(owner, summon, ownerCommandTarget)) {
-            if (summon.getTargetSource() == SummonTargetSource.COMMAND) {
-                summon.clearTarget();
-            }
-            return;
-        }
-
-        if (summon.getTargetSource() == SummonTargetSource.COMMAND
-                && summon.getTargetEntityId() == ownerCommandTarget.getEntityId()) {
-            return;
-        }
-        summon.setTarget(ownerCommandTarget, SummonTargetSource.COMMAND);
-    }
-
-    private boolean isValidTrackedTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase target) {
-        if (target == null || target.isDead) {
-            return false;
-        }
-        double followRangeSq = summon.getDefinition().getFollowRange() * summon.getDefinition().getFollowRange();
-        return target.getDistanceSq(owner) <= followRangeSq;
-    }
-
-    private boolean canAcceptCommandTarget(EntityLivingBase owner, SummonBullet summon, EntityLivingBase target) {
-        if (owner == null || summon == null || target == null) {
-            return false;
-        }
-        if (!allowsCommandResponse(summon)) {
-            return false;
-        }
-        double followRangeSq = summon.getDefinition().getFollowRange() * summon.getDefinition().getFollowRange();
-        return target.getDistanceSq(owner) <= followRangeSq;
-    }
-
-    private boolean allowsCommandResponse(SummonBullet summon) {
-        SummonCommandResponsePolicy policy = summon.getDefinition().getCommandResponsePolicy();
-        if (policy == null) {
-            return true;
-        }
-
-        switch (policy) {
-            case IGNORE_COMMAND:
-                return false;
-            case COMBAT_ONLY:
-                return summon.getState() == SummonState.CHASING_TARGET
-                        || summon.getState() == SummonState.ATTACKING;
-            case STRICT_LOCK:
-            default:
-                return true;
-        }
-    }
-
-    private boolean isOutsideLeash(EntityLivingBase owner, SummonBullet summon) {
-        if (owner == null || summon == null) {
-            return false;
-        }
-        double leashRange = summon.getDefinition().getLeashRange();
-        double dx = summon.getPosX() - owner.posX;
-        double dy = summon.getPosY() - owner.posY;
-        double dz = summon.getPosZ() - owner.posZ;
-        return dx * dx + dy * dy + dz * dz > leashRange * leashRange;
-    }
-
-    private void updateOwnerCommandTarget(UUID ownerId, World world, EntityLivingBase target, long worldTick, Random random) {
-        if (ownerId == null) {
-            return;
-        }
-        if (target == null) {
-            ownerCommandTargets.remove(ownerId);
-            return;
-        }
-
-        OwnerCommandTarget command = ownerCommandTargets.computeIfAbsent(ownerId, ignored -> new OwnerCommandTarget());
-        if (command.commandTick != worldTick) {
-            command.commandTick = worldTick;
-            command.dimension = world.provider.getDimension();
-            command.targetEntityId = target.getEntityId();
-            command.candidateCount = 1;
-            return;
-        }
-
-        command.candidateCount = Math.max(1, command.candidateCount) + 1;
-        if (random != null && random.nextInt(command.candidateCount) != 0) {
-            return;
-        }
-        command.dimension = world.provider.getDimension();
-        command.targetEntityId = target.getEntityId();
-    }
-
-    private EntityLivingBase resolveOwnerCommandTarget(World world, UUID ownerId) {
-        if (world == null || ownerId == null) {
-            return null;
-        }
-
-        OwnerCommandTarget command = ownerCommandTargets.get(ownerId);
-        if (command == null) {
-            return null;
-        }
-        if (command.dimension != world.provider.getDimension()) {
-            return null;
-        }
-
-        net.minecraft.entity.Entity entity = world.getEntityByID(command.targetEntityId);
-        if (!(entity instanceof EntityLivingBase) || entity.isDead) {
-            ownerCommandTargets.remove(ownerId);
-            return null;
-        }
-        return (EntityLivingBase) entity;
-    }
-
     private void reconcileOwnerSummons(UUID ownerId, int maxSlots) {
         if (ownerId == null) {
             return;
@@ -718,17 +526,13 @@ public class SummonManager {
     }
 
     private void handleSummonBodyCollision(SummonBullet summon, World world, long worldTick) {
-        if (summon.isDead()) {
+        if (summon.isDead() || summon.getSpec().getCollisionShape() == null) {
             return;
         }
-        if (!summon.hasCollision()) {
-            return;
-        }
-
         double x = summon.getPosX();
         double y = summon.getPosY();
         double z = summon.getPosZ();
-        double radius = summon.getCollisionShape().getBroadphaseRadius();
+        double radius = summon.getSpec().getCollisionShape().getBroadphaseRadius();
         AxisAlignedBB searchBox = radius > 0.0D
                 ? new AxisAlignedBB(x, y, z, x, y, z).grow(radius + 4.0D)
                 : new AxisAlignedBB(x, y, z, x, y, z).grow(4.0D);
@@ -738,7 +542,7 @@ public class SummonManager {
             if (!canSummonCollide(world, summon, entity)) {
                 continue;
             }
-            if (!summon.getCollisionShape().checkCollision(x, y, z, entity)) {
+            if (!summon.getSpec().getCollisionShape().checkCollision(x, y, z, entity)) {
                 continue;
             }
             if (!summon.canTriggerContact(entity, worldTick)) {
@@ -755,8 +559,10 @@ public class SummonManager {
         CollisionContext ctx = new CollisionContext(summon, world, entity);
         BulletCollisionEvent eventBus = new BulletCollisionEvent(world, summon, entity, ctx);
         MinecraftForge.EVENT_BUS.post(eventBus);
+        if (summon instanceof AbstractSummonEntity) {
+            ((AbstractSummonEntity) summon).onBodyCollision(world, entity);
+        }
         if (!eventBus.isCanceled()) {
-            summon.handleHit(ctx);
             if (!ctx.canceled) {
                 entity.attackEntityFrom(DamageSource.GENERIC, ctx.damage);
             }
@@ -795,7 +601,6 @@ public class SummonManager {
         if (!summon.hasSyncBaseline()) {
             return SPacketSummon.FLAG_POSITION | SPacketSummon.FLAG_VELOCITY | SPacketSummon.FLAG_LIFE;
         }
-
         int flags = 0;
         double posDx = summon.getPosX() - summon.getLastSyncedPositionX();
         double posDy = summon.getPosY() - summon.getLastSyncedPositionY();
@@ -809,8 +614,7 @@ public class SummonManager {
         if (velDx * velDx + velDy * velDy + velDz * velDz >= SNAPSHOT_VEL_EPS_SQ) {
             flags |= SPacketSummon.FLAG_VELOCITY;
         }
-
-        int maxSilentTicks = Math.max(10, summon.getDefinition().getSyncIntervalTicks() * 5);
+        int maxSilentTicks = Math.max(10, summon.getSpec().getSyncIntervalTicks() * 5);
         if (worldTick - summon.getLastSyncWorldTick() >= maxSilentTicks) {
             flags |= SPacketSummon.FLAG_LIFE;
         }
@@ -819,17 +623,6 @@ public class SummonManager {
 
     private SummonBullet getLiveSummon(World world, int id) {
         return summonStore.getLive(world, id);
-    }
-
-    private SummonContext createContext(World world, SummonBullet summon, EntityLivingBase owner, long worldTick) {
-        EntityLivingBase target = summon.getTarget(world);
-        if (target != null) {
-            double followRange = summon.getDefinition().getFollowRange();
-            if (target.isDead || target.getDistanceSq(owner) > followRange * followRange) {
-                target = null;
-            }
-        }
-        return new SummonContext(this, world, summon, owner, summon.getDefinition(), worldTick, target);
     }
 
     private void syncSummon(World world, SummonBullet summon, int flags) {
@@ -852,41 +645,11 @@ public class SummonManager {
         syncService.sendVisual(world, summon, flags);
     }
 
-    private void updateSummonRuntime(World world, int id, Consumer<DataPayload> mutation) {
-        SummonBullet summon = getLiveSummon(world, id);
-        if (summon == null || mutation == null) {
-            return;
-        }
-
-        DataPayload root = summon.getCustomData();
-        if (root == null) {
-            root = new DataPayload();
-        }
-
-        DataPayload runtime = root.hasKey(SummonContext.RUNTIME_ROOT_KEY)
-                ? root.getCompoundTag(SummonContext.RUNTIME_ROOT_KEY)
-                : new DataPayload();
-        mutation.accept(runtime);
-        if (runtime.isEmpty()) {
-            root.removeTag(SummonContext.RUNTIME_ROOT_KEY);
-        } else {
-            root.setTag(SummonContext.RUNTIME_ROOT_KEY, runtime);
-        }
-        summon.setCustomData(root);
-    }
-
     private void indexSummon(World world, SummonBullet summon) {
         ownershipIndex.index(world, summon);
     }
 
     private void deindexSummon(World world, SummonBullet summon) {
         ownershipIndex.deindex(world, summon);
-    }
-
-    private static final class OwnerCommandTarget {
-        private int targetEntityId = -1;
-        private int dimension;
-        private long commandTick = Long.MIN_VALUE;
-        private int candidateCount;
     }
 }

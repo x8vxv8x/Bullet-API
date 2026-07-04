@@ -1,12 +1,12 @@
 package com.smd.bulletapi.api;
 
 import com.smd.bulletapi.api.annotation.PublicApi;
-import com.smd.bulletapi.api.builder.SummonBuilder;
 import com.smd.bulletapi.api.handle.SummonHandle;
-import com.smd.bulletapi.api.summon.AbstractSummonBlueprint;
-import com.smd.bulletapi.common.summon.SummonDefinition;
+import com.smd.bulletapi.api.summon.SummonType;
 import com.smd.bulletapi.common.summon.SummonManager;
 import com.smd.bulletapi.common.summon.SummonRegistry;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 
@@ -14,12 +14,16 @@ import net.minecraft.world.World;
 public final class SummonApi {
     private SummonApi() {}
 
-    public static SummonBuilder builder(World world) {
-        return new SummonBuilder(world);
-    }
-
     public static SummonHandle handle(World world, int id) {
         return new SummonHandle(world, id);
+    }
+
+    public static int spawn(World world, EntityLivingBase owner, String typeId) {
+        return SummonManager.getInstance().spawnSummon(world, owner, typeId);
+    }
+
+    public static int spawn(World world, EntityLivingBase owner, String typeId, Vec3d position) {
+        return SummonManager.getInstance().spawnSummon(world, owner, typeId, position);
     }
 
     public static int getPlayerMaxSlots(EntityPlayer player) {
@@ -34,19 +38,11 @@ public final class SummonApi {
         SummonManager.getInstance().setPlayerMaxSlots(player, slots);
     }
 
-    public static void registerDefinition(SummonDefinition definition) {
-        SummonRegistry.register(definition);
+    public static void registerType(SummonType type) {
+        SummonRegistry.register(type);
     }
 
-    public static void registerBlueprint(AbstractSummonBlueprint blueprint) {
-        SummonRegistry.register(blueprint);
-    }
-
-    public static AbstractSummonBlueprint getBlueprint(String id) {
-        return SummonRegistry.getBlueprint(id);
-    }
-
-    public static SummonDefinition getDefinition(String id) {
+    public static SummonType getType(String id) {
         return SummonRegistry.get(id);
     }
 }

@@ -43,12 +43,5 @@ public final class SummonHandle {
     public SummonHandle retarget() { SummonManager.getInstance().retargetSummon(world, id); return this; }
     public SummonHandle returnToOwner() { SummonManager.getInstance().returnSummonToOwner(world, id); return this; }
     public SummonHandle setState(SummonState state) { SummonManager.getInstance().updateSummonState(world, id, state); return this; }
-    public SummonHandle setMode(String mode) { SummonManager.getInstance().updateSummonMode(world, id, mode); return this; }
-    public SummonHandle clearMode() { SummonManager.getInstance().clearSummonMode(world, id); return this; }
-    public SummonHandle setInt(String key, int value) { SummonManager.getInstance().updateSummonIntParam(world, id, key, value); return this; }
-    public SummonHandle setFloat(String key, float value) { SummonManager.getInstance().updateSummonFloatParam(world, id, key, value); return this; }
-    public SummonHandle setBool(String key, boolean value) { SummonManager.getInstance().updateSummonBoolParam(world, id, key, value); return this; }
-    public SummonHandle setString(String key, String value) { SummonManager.getInstance().updateSummonStringParam(world, id, key, value); return this; }
-    public SummonHandle clearParam(String key) { SummonManager.getInstance().clearSummonParam(world, id, key); return this; }
     public SummonSnapshot snapshot() { return SummonManager.getInstance().getSummonSnapshot(world, id); }
 }
